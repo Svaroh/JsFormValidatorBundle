@@ -1,10 +1,10 @@
-import { FpJsFormElement } from '../FpJsFormValidator';
+import { SvarohJsFormElement } from '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsUrl from './Url';
 
 const constraintsUrl = new SymfonyComponentValidatorConstraintsUrl();
 constraintsUrl.message = '{{ value }} is not valid url';
 
-const element = new FpJsFormElement();
+const element = new SvarohJsFormElement();
 
 test.each([
     ['http://www.google.com', []],

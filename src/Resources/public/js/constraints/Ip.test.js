@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsIp from './Ip';
 
 const constraintsIp = new SymfonyComponentValidatorConstraintsIp();

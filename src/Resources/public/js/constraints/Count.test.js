@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsCount from './Count';
 
 const constraintsCount = new SymfonyComponentValidatorConstraintsCount();

@@ -1,6 +1,6 @@
 <?php
 
-namespace Fp\JsFormValidatorBundle\DependencyInjection;
+namespace Svaroh\JsFormValidatorBundle\DependencyInjection;
 
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -10,7 +10,7 @@ use Symfony\Component\DependencyInjection\Loader;
 /**
  * This is the class that loads and manages this bundle configuration
  */
-class FpJsFormValidatorExtension extends Extension
+class SvarohJsFormValidatorExtension extends Extension
 {
     /**
      * Load configuration
@@ -36,6 +36,6 @@ class FpJsFormValidatorExtension extends Extension
      */
     public function getAlias(): string
     {
-        return 'fp_js_form_validator';
+        return 'svaroh_js_form_validator';
     }
 }

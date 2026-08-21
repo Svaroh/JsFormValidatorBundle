@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsRegex from './Regex';
 
 const constraintsRegex = new SymfonyComponentValidatorConstraintsRegex();

@@ -1,5 +1,5 @@
 <?php
-namespace Fp\JsFormValidatorBundle\Exception;
+namespace Svaroh\JsFormValidatorBundle\Exception;
 
 class UndefinedFormException extends \Exception
 {

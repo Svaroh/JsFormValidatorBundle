@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsLuhn from './Luhn';
 
 const constraintsLuhn = new SymfonyComponentValidatorConstraintsLuhn();

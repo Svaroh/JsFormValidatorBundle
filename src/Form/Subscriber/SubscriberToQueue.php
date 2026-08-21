@@ -1,7 +1,7 @@
 <?php
-namespace Fp\JsFormValidatorBundle\Form\Subscriber;
+namespace Svaroh\JsFormValidatorBundle\Form\Subscriber;
 
-use Fp\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
+use Svaroh\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
@@ -10,7 +10,7 @@ use Symfony\Component\Form\FormInterface;
 /**
  * Class FormSubscriber
  *
- * @package Fp\JsFormValidatorBundle\Form\EventSubscriber
+ * @package Svaroh\JsFormValidatorBundle\Form\EventSubscriber
  */
 class SubscriberToQueue implements EventSubscriberInterface
 {

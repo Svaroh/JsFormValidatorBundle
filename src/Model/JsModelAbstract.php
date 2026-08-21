@@ -1,13 +1,13 @@
 <?php
 
-namespace Fp\JsFormValidatorBundle\Model;
+namespace Svaroh\JsFormValidatorBundle\Model;
 
 /**
  * All the models inherited from this class converted to a similar Javascript model by printing them as a string
  *
  * Class PhpToJsModel
  *
- * @package Fp\JsFormValidatorBundle\Model
+ * @package Svaroh\JsFormValidatorBundle\Model
  */
 abstract class JsModelAbstract
 {

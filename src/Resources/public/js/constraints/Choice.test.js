@@ -1,4 +1,4 @@
-import { FpJsFormElement } from '../FpJsFormValidator';
+import { SvarohJsFormElement } from '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsChoice from './Choice';
 
 const prepareValidator = (choices, multiple = false, min = 0, max = '-') => {
@@ -19,7 +19,7 @@ const prepareValidator = (choices, multiple = false, min = 0, max = '-') => {
     return constraintsChoice;
 };
 
-const element = new FpJsFormElement();
+const element = new SvarohJsFormElement();
 
 test.each([
     [prepareValidator([]), null, []],

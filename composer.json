@@ -1,9 +1,9 @@
 {
-    "name": "fp/jsformvalidator-bundle",
+    "name": "svaroh/jsformvalidator-bundle",
     "type": "symfony-bundle",
     "description": "JavaScript validation for Symfony forms.",
     "keywords": ["Symfony", "Form", "Javascript", "Validation"],
-    "homepage": "https://github.com/formapro/JsFormValidatorBundle",
+    "homepage": "https://github.com/Svaroh/JsFormValidatorBundle",
     "license": "MIT",
     "authors": [
         {
@@ -57,19 +57,19 @@
 
     "autoload": {
         "psr-4": {
-            "Fp\\JsFormValidatorBundle\\": "src"
+            "Svaroh\\JsFormValidatorBundle\\": "src"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Fp\\JsFormValidatorBundle\\Tests\\": "Tests/",
+            "Svaroh\\JsFormValidatorBundle\\Tests\\": "Tests/",
             "App\\": "Tests/app/src"
         }
     },
 
     "extra": {
         "branch-alias": {
-            "dev-master": "2.0-dev"
+            "dev-master": "1.0-dev"
         },
         "symfony": {
             "allow-contrib": true,

@@ -9,14 +9,14 @@ export default function SymfonyComponentValidatorConstraintsGreaterThanOrEqual()
     this.value = null;
 
     this.validate = function (value) {
-        var f = FpJsFormValidator;
+        var f = SvarohJsFormValidator;
         if (f.isValueEmty(value) || value >= this.value) {
             return [];
         } else {
             return [
                 this.message
-                    .replace('{{ value }}', FpJsBaseConstraint.formatValue(value))
-                    .replace('{{ compared_value }}', FpJsBaseConstraint.formatValue(this.value))
+                    .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
+                    .replace('{{ compared_value }}', SvarohJsBaseConstraint.formatValue(this.value))
             ];
         }
     }

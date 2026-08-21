@@ -1,6 +1,6 @@
 <?php
 
-namespace Fp\JsFormValidatorBundle\DependencyInjection;
+namespace Svaroh\JsFormValidatorBundle\DependencyInjection;
 
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
@@ -16,7 +16,7 @@ class Configuration implements ConfigurationInterface
      */
     public function getConfigTreeBuilder(): TreeBuilder
     {
-        $treeBuilder = new TreeBuilder('fp_js_form_validator');
+        $treeBuilder = new TreeBuilder('svaroh_js_form_validator');
         $rootNode = $treeBuilder->getRootNode();
 
         /** @noinspection PhpUndefinedMethodInspection */
@@ -30,7 +30,7 @@ class Configuration implements ConfigurationInterface
                     ->children()
                         ->scalarNode('check_unique_entity')
                             ->cannotBeEmpty()
-                            ->defaultValue('fp_js_form_validator.check_unique_entity')
+                            ->defaultValue('svaroh_js_form_validator.check_unique_entity')
                         ->end()
                     ->end()
                 ->end()

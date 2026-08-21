@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsDate from './Date';
 
 const constraintsDate = new SymfonyComponentValidatorConstraintsDate();

@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsNotIdenticalTo from './NotIdenticalTo';
 
 const constraintsNotIdenticalTo = new SymfonyComponentValidatorConstraintsNotIdenticalTo();

@@ -14,7 +14,7 @@ export default function SymfonyComponentValidatorConstraintsRange() {
 
     this.validate = function (value) {
         var errors = [];
-        var f = FpJsFormValidator;
+        var f = SvarohJsFormValidator;
 
         if (f.isValueEmty(value)) {
             return errors;
@@ -22,15 +22,15 @@ export default function SymfonyComponentValidatorConstraintsRange() {
         if (isNaN(value)) {
             errors.push(
                 this.invalidMessage
-                    .replace('{{ value }}', FpJsBaseConstraint.formatValue(value))
+                    .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
             );
         }
         if (this.notInRangeMessage && !isNaN(this.min) && !isNaN(this.max) && (value < this.min || value > this.max)) {
             errors.push(
                 this.notInRangeMessage
-                    .replace('{{ value }}', FpJsBaseConstraint.formatValue(value))
-                    .replace('{{ min }}', FpJsBaseConstraint.formatValue(this.min))
-                    .replace('{{ max }}', FpJsBaseConstraint.formatValue(this.max))
+                    .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
+                    .replace('{{ min }}', SvarohJsBaseConstraint.formatValue(this.min))
+                    .replace('{{ max }}', SvarohJsBaseConstraint.formatValue(this.max))
             );
 
             return errors;
@@ -38,15 +38,15 @@ export default function SymfonyComponentValidatorConstraintsRange() {
         if (!isNaN(this.max) && value > this.max) {
             errors.push(
                 this.maxMessage
-                    .replace('{{ value }}', FpJsBaseConstraint.formatValue(value))
-                    .replace('{{ limit }}', FpJsBaseConstraint.formatValue(this.max))
+                    .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
+                    .replace('{{ limit }}', SvarohJsBaseConstraint.formatValue(this.max))
             );
         }
         if (!isNaN(this.min) && value < this.min) {
             errors.push(
                 this.minMessage
-                    .replace('{{ value }}', FpJsBaseConstraint.formatValue(value))
-                    .replace('{{ limit }}', FpJsBaseConstraint.formatValue(this.min))
+                    .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
+                    .replace('{{ limit }}', SvarohJsBaseConstraint.formatValue(this.min))
             );
         }
 

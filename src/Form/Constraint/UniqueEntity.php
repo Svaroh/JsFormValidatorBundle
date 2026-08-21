@@ -1,11 +1,11 @@
 <?php
-namespace Fp\JsFormValidatorBundle\Form\Constraint;
+namespace Svaroh\JsFormValidatorBundle\Form\Constraint;
 
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity as BaseUniqueEntity;
 
 /**
  * Class UniqueEntity
- * @package Fp\JsFormValidatorBundle\Form\Constraint
+ * @package Svaroh\JsFormValidatorBundle\Form\Constraint
  */
 class UniqueEntity extends BaseUniqueEntity
 {

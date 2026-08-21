@@ -1,10 +1,10 @@
 <?php
-namespace Fp\JsFormValidatorBundle\Factory;
+namespace Svaroh\JsFormValidatorBundle\Factory;
 
-use Fp\JsFormValidatorBundle\Exception\UndefinedFormException;
-use Fp\JsFormValidatorBundle\Form\Constraint\UniqueEntity;
-use Fp\JsFormValidatorBundle\Model\JsConfig;
-use Fp\JsFormValidatorBundle\Model\JsFormElement;
+use Svaroh\JsFormValidatorBundle\Exception\UndefinedFormException;
+use Svaroh\JsFormValidatorBundle\Form\Constraint\UniqueEntity;
+use Svaroh\JsFormValidatorBundle\Model\JsConfig;
+use Svaroh\JsFormValidatorBundle\Model\JsFormElement;
 use Symfony\Component\Form\ChoiceList\ChoiceListInterface;
 use Symfony\Component\Form\DataTransformerInterface;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -22,7 +22,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
  *
  * Class JsFormValidatorFactory
  *
- * @package Fp\JsFormValidatorBundle\Factory
+ * @package Svaroh\JsFormValidatorBundle\Factory
  */
 class JsFormValidatorFactory
 {
@@ -606,14 +606,14 @@ class JsFormValidatorFactory
 
     public function getJsConfigString()
     {
-        return '<script type="text/javascript">FpJsFormValidator.config = ' . $this->createJsConfigModel() . ';</script>';
+        return '<script type="text/javascript">SvarohJsFormValidator.config = ' . $this->createJsConfigModel() . ';</script>';
     }
 
     /**
      * @param string $formName
      * @param bool   $onLoad
      *
-     * @throws \Fp\JsFormValidatorBundle\Exception\UndefinedFormException
+     * @throws \Svaroh\JsFormValidatorBundle\Exception\UndefinedFormException
      * @return string
      */
     public function getJsValidatorString($formName = null, $onLoad = true)
@@ -640,7 +640,7 @@ class JsFormValidatorFactory
 
         $result = array();
         foreach ($models as $model) {
-            $result[] = "FpJsFormValidator.addModel({$model}, {$onLoad});";
+            $result[] = "SvarohJsFormValidator.addModel({$model}, {$onLoad});";
         }
 
         return implode("\n", $result);

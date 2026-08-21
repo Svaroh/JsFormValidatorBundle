@@ -112,8 +112,8 @@ describe('Symfony form data transformers', () => {
             },
         };
         const customize = jest.fn();
-        global.FpJsFormValidator = { customize };
-        window.FpJsFormValidator = global.FpJsFormValidator;
+        global.SvarohJsFormValidator = { customize };
+        window.SvarohJsFormValidator = global.SvarohJsFormValidator;
 
         expect(transformer.reverseTransform({ first: 'secret', second: 'secret' }, element)).toBe('secret');
         expect(customize).toHaveBeenLastCalledWith(childDomNode, 'showErrors', {

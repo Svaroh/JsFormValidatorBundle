@@ -1,27 +1,27 @@
-import '../FpJsFormValidator';
-import FpJsFormValidatorBundleFormConstraintUniqueEntity from './UniqueEntity';
+import '../SvarohJsFormValidator';
+import SvarohJsFormValidatorBundleFormConstraintUniqueEntity from './UniqueEntity';
 
-describe('FpJsFormValidatorBundleFormConstraintUniqueEntity', () => {
+describe('SvarohJsFormValidatorBundleFormConstraintUniqueEntity', () => {
     afterEach(() => {
-        window.FpJsFormValidator.config = {};
+        window.SvarohJsFormValidator.config = {};
         jest.restoreAllMocks();
     });
 
     test('sends the current entity id with the uniqueness request', () => {
-        const constraint = new FpJsFormValidatorBundleFormConstraintUniqueEntity();
+        const constraint = new SvarohJsFormValidatorBundleFormConstraintUniqueEntity();
         constraint.fields = ['email'];
         constraint.entityName = 'App\\Entity\\User';
         constraint.entityId = 15;
         constraint.uniqueId = 1;
 
-        window.FpJsFormValidator.config = {
+        window.SvarohJsFormValidator.config = {
             routing: {
                 check_unique_entity: '/check_unique_entity',
             },
         };
 
         const sendRequest = jest
-            .spyOn(window.FpJsFormValidator.ajax, 'sendRequest')
+            .spyOn(window.SvarohJsFormValidator.ajax, 'sendRequest')
             .mockImplementation(() => {});
 
         const element = {

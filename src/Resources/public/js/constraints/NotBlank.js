@@ -9,10 +9,10 @@ export default function SymfonyComponentValidatorConstraintsNotBlank() {
 
     this.validate = function (value) {
         var errors = [];
-        var f = FpJsFormValidator;
+        var f = SvarohJsFormValidator;
 
         if (f.isValueEmty(value)) {
-            errors.push(this.message.replace('{{ value }}', FpJsBaseConstraint.formatValue(value)));
+            errors.push(this.message.replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value)));
         }
 
         return errors;

@@ -13,7 +13,7 @@ export default function SymfonyComponentValidatorConstraintsCount() {
 
     this.validate = function (value) {
         var errors = [];
-        var f = FpJsFormValidator;
+        var f = SvarohJsFormValidator;
 
         if (!f.isValueArray(value) && !f.isValueObject(value)) {
             return errors;
@@ -40,19 +40,19 @@ export default function SymfonyComponentValidatorConstraintsCount() {
         this.min = parseInt(this.min);
         this.max = parseInt(this.max);
 
-        this.minMessage = FpJsBaseConstraint.prepareMessage(
+        this.minMessage = SvarohJsBaseConstraint.prepareMessage(
             this.minMessage,
-            {'{{ limit }}': FpJsBaseConstraint.formatValue(this.min)},
+            {'{{ limit }}': SvarohJsBaseConstraint.formatValue(this.min)},
             this.min
         );
-        this.maxMessage = FpJsBaseConstraint.prepareMessage(
+        this.maxMessage = SvarohJsBaseConstraint.prepareMessage(
             this.maxMessage,
-            {'{{ limit }}': FpJsBaseConstraint.formatValue(this.max)},
+            {'{{ limit }}': SvarohJsBaseConstraint.formatValue(this.max)},
             this.max
         );
-        this.exactMessage = FpJsBaseConstraint.prepareMessage(
+        this.exactMessage = SvarohJsBaseConstraint.prepareMessage(
             this.exactMessage,
-            {'{{ limit }}': FpJsBaseConstraint.formatValue(this.min)},
+            {'{{ limit }}': SvarohJsBaseConstraint.formatValue(this.min)},
             this.min
         );
     }

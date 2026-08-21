@@ -1,14 +1,34 @@
-# FpJsFormValidatorBundle
+# SvarohJsFormValidatorBundle
 
-[![CI](https://github.com/formapro/JsFormValidatorBundle/actions/workflows/ci.yml/badge.svg)](https://github.com/formapro/JsFormValidatorBundle/actions/workflows/ci.yml)
-[![Total Downloads](https://poser.pugx.org/fp/jsformvalidator-bundle/downloads.png)](https://packagist.org/packages/fp/jsformvalidator-bundle)
+[![CI](https://github.com/Svaroh/JsFormValidatorBundle/actions/workflows/ci.yml/badge.svg)](https://github.com/Svaroh/JsFormValidatorBundle/actions/workflows/ci.yml)
+[![Total Downloads](https://poser.pugx.org/svaroh/jsformvalidator-bundle/downloads.png)](https://packagist.org/packages/svaroh/jsformvalidator-bundle)
 
-FpJsFormValidatorBundle converts Symfony form validation metadata into JavaScript
+SvarohJsFormValidatorBundle converts Symfony form validation metadata into JavaScript
 validation rules and attaches client-side validators to rendered forms.
+
+## About This Repository
+
+This repository is a new home for the bundle, maintained by Svaroh. It continues
+`formapro/JsFormValidatorBundle`, which remains the home of the
+`fp/jsformvalidator-bundle` Composer package.
+
+`svaroh/jsformvalidator-bundle` is a new Composer package with its own version
+history starting at `1.0`. It is not a `2.0` of `fp/jsformvalidator-bundle`, and
+its version numbers do not continue that package's.
+
+The move renames the project namespace from `Fp`/`fp` to `Svaroh`/`svaroh`. That
+covers the Composer package, PHP namespace, bundle class, DI alias and service
+ids, route names, published asset path, and the JavaScript globals and file
+names, so switching over requires changes in your application.
+
+All further development and fixes land here. `fp/jsformvalidator-bundle` stays
+available and existing installations keep working, but it receives no new fixes
+from the maintainers; pull requests against it are still welcome in
+`formapro/JsFormValidatorBundle` and will be merged there.
 
 ## Status
 
-This branch has been revived for the current PHP/Symfony baseline:
+This branch targets the current PHP/Symfony baseline:
 
 - PHP 8.4+ runtime support; CI currently verifies PHP 8.4, 8.5, and
   8.6 nightly
@@ -24,7 +44,8 @@ by a newer `Tests/app` fixture. The maintained test commands now cover the PHP
 model/factory/controller core, JavaScript constraints, and a Cypress smoke test
 against the Symfony test application.
 
-For older Symfony applications, use the historical branches:
+For older Symfony applications, use the historical branches of
+[formapro/JsFormValidatorBundle](https://github.com/formapro/JsFormValidatorBundle):
 
 - Symfony 5.4, 6.4, or 7.x: `1.7`
 - Symfony 4: `1.6`
@@ -38,14 +59,14 @@ For older Symfony applications, use the historical branches:
 Install the bundle with Composer:
 
 ```bash
-composer require fp/jsformvalidator-bundle
+composer require svaroh/jsformvalidator-bundle
 ```
 
-If you are testing this revived branch before a tagged release, require the
-development branch explicitly:
+If you are testing before the first tagged release, require the development
+branch explicitly:
 
 ```bash
-composer require fp/jsformvalidator-bundle:"dev-master"
+composer require svaroh/jsformvalidator-bundle:"dev-master"
 ```
 
 Register the bundle in `config/bundles.php`:
@@ -55,7 +76,7 @@ Register the bundle in `config/bundles.php`:
 
 return [
     // ...
-    Fp\JsFormValidatorBundle\FpJsFormValidatorBundle::class => ['all' => true],
+    Svaroh\JsFormValidatorBundle\SvarohJsFormValidatorBundle::class => ['all' => true],
 ];
 ```
 
@@ -64,8 +85,8 @@ return [
 Validation is enabled for every form by default. You can disable it globally:
 
 ```yaml
-# config/packages/fp_js_form_validator.yaml
-fp_js_form_validator:
+# config/packages/svaroh_js_form_validator.yaml
+svaroh_js_form_validator:
     js_validation: false
 ```
 
@@ -77,10 +98,10 @@ Per-form and per-field disabling is documented in
 If you use Symfony's Doctrine `UniqueEntity` constraint, import the bundle route:
 
 ```yaml
-# config/routes/fp_js_form_validator.yaml
-fp_js_form_validator:
-    resource: '@FpJsFormValidatorBundle/Resources/config/routing.yaml'
-    prefix: /fp_js_form_validator
+# config/routes/svaroh_js_form_validator.yaml
+svaroh_js_form_validator:
+    resource: '@SvarohJsFormValidatorBundle/Resources/config/routing.yaml'
+    prefix: /svaroh_js_form_validator
 ```
 
 Make sure your security configuration allows requests to this route.
@@ -96,8 +117,8 @@ Encore
     // ...
     .addEntry('app', './assets/js/app.js')
 +   .addEntry(
-+       'FpJsFormValidator',
-+       './vendor/fp/jsformvalidator-bundle/src/Resources/public/js/FpJsFormValidatorWithJqueryInit.js'
++       'SvarohJsFormValidator',
++       './vendor/svaroh/jsformvalidator-bundle/src/Resources/public/js/SvarohJsFormValidatorWithJqueryInit.js'
 +   )
     // ...
 ;
@@ -106,7 +127,7 @@ Encore
 Then include the entry in your template:
 
 ```twig
-{{ encore_entry_script_tags('FpJsFormValidator') }}
+{{ encore_entry_script_tags('SvarohJsFormValidator') }}
 {{ encore_entry_script_tags('app') }}
 ```
 
@@ -114,8 +135,8 @@ Then include the entry in your template:
 
 ```diff
  import $ from 'jquery';
-+import '../vendor/fp/jsformvalidator-bundle/src/Resources/public/js/FpJsFormValidator';
-+import '../vendor/fp/jsformvalidator-bundle/src/Resources/public/js/jquery.fpjsformvalidator';
++import '../vendor/svaroh/jsformvalidator-bundle/src/Resources/public/js/SvarohJsFormValidator';
++import '../vendor/svaroh/jsformvalidator-bundle/src/Resources/public/js/jquery.svarohjsformvalidator';
 ```
 
 Adjust the import path to your application structure.

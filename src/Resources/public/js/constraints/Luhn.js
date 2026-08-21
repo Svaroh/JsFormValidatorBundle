@@ -9,7 +9,7 @@ export default function SymfonyComponentValidatorConstraintsLuhn() {
 
     this.validate = function (value) {
         var errors = [];
-        var f = FpJsFormValidator;
+        var f = SvarohJsFormValidator;
 
         if (f.isValueEmty(value)) {
             return errors;
@@ -20,7 +20,7 @@ export default function SymfonyComponentValidatorConstraintsLuhn() {
 
         // Check if the value contains only digits
         if (!/^\d+$/.test(strValue)) {
-            errors.push(this.message.replace('{{ value }}', FpJsBaseConstraint.formatValue(value)));
+            errors.push(this.message.replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value)));
             return errors;
         }
 
@@ -44,7 +44,7 @@ export default function SymfonyComponentValidatorConstraintsLuhn() {
 
         // Checksum must be non-zero and a multiple of 10
         if (0 === checkSum || 0 !== checkSum % 10) {
-            errors.push(this.message.replace('{{ value }}', FpJsBaseConstraint.formatValue(value)));
+            errors.push(this.message.replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value)));
         }
 
         return errors;

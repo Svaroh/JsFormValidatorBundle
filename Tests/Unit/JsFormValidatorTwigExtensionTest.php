@@ -1,9 +1,9 @@
 <?php
 
-namespace Fp\JsFormValidatorBundle\Tests\Unit;
+namespace Svaroh\JsFormValidatorBundle\Tests\Unit;
 
-use Fp\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
-use Fp\JsFormValidatorBundle\Twig\Extension\JsFormValidatorTwigExtension;
+use Svaroh\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
+use Svaroh\JsFormValidatorBundle\Twig\Extension\JsFormValidatorTwigExtension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\FormView;
 
@@ -46,13 +46,13 @@ class JsFormValidatorTwigExtensionTest extends TestCase
             ->expects($this->once())
             ->method('getJsValidatorString')
             ->with('profile', false)
-            ->willReturn('FpJsFormValidator.addModel({}, false);')
+            ->willReturn('SvarohJsFormValidator.addModel({}, false);')
         ;
 
         $extension = new JsFormValidatorTwigExtension($factory);
 
         $this->assertSame(
-            '<script type="text/javascript">FpJsFormValidator.addModel({}, false);</script>',
+            '<script type="text/javascript">SvarohJsFormValidator.addModel({}, false);</script>',
             $extension->getJsValidator($view, false)
         );
     }

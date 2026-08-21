@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsBlank from './Blank';
 
 const constraintBlank = new SymfonyComponentValidatorConstraintsBlank();
@@ -12,7 +12,7 @@ test.each([
     [0, ['0 have to be blank']],
     ['1', ['\"1\" have to be blank']],
     ['a', ['\"a\" have to be blank']],
-    ['FpJsFormValidator', ['\"FpJsFormValidator\" have to be blank']]
+    ['SvarohJsFormValidator', ['\"SvarohJsFormValidator\" have to be blank']]
 ])(
     'SymfonyComponentValidatorConstraintsBlank.validate',
     (value, expected) => {

@@ -1,6 +1,6 @@
-import './FpJsFormValidator';
+import './SvarohJsFormValidator';
 
-describe('FpJsFormValidator prototypes', () => {
+describe('SvarohJsFormValidator prototypes', () => {
     test('preparePrototype uses the prototype item name as the default id segment', () => {
         const prototype = {
             name: 'form[items][__name__]',
@@ -14,7 +14,7 @@ describe('FpJsFormValidator prototypes', () => {
             },
         };
 
-        const prepared = window.FpJsFormValidator.preparePrototype(prototype, '0');
+        const prepared = window.SvarohJsFormValidator.preparePrototype(prototype, '0');
 
         expect(prepared.name).toBe('form[items][0]');
         expect(prepared.id).toBe('form_items_0');
@@ -23,7 +23,7 @@ describe('FpJsFormValidator prototypes', () => {
     });
 
     test('addPrototype does not duplicate the parent id in generated child ids', () => {
-        const parent = window.FpJsFormValidator.createElement({
+        const parent = window.SvarohJsFormValidator.createElement({
             id: 'form_items',
             name: 'form[items]',
             type: '',
@@ -46,7 +46,7 @@ describe('FpJsFormValidator prototypes', () => {
             },
         });
 
-        window.FpJsFormValidator.customizeMethods.addPrototype.apply([{ jsFormValidator: parent }], ['0']);
+        window.SvarohJsFormValidator.customizeMethods.addPrototype.apply([{ jsFormValidator: parent }], ['0']);
 
         expect(parent.children[0].id).toBe('form_items_0');
         expect(parent.children[0].name).toBe('form[items][0]');
@@ -54,9 +54,9 @@ describe('FpJsFormValidator prototypes', () => {
     });
 });
 
-describe('FpJsFormValidator error mapping', () => {
+describe('SvarohJsFormValidator error mapping', () => {
     function createElement(id, name) {
-        const element = new window.FpJsFormElement();
+        const element = new window.SvarohJsFormElement();
         element.id = id;
         element.name = name || id;
         element.domNode = document.createElement('input');
@@ -100,7 +100,7 @@ describe('FpJsFormValidator error mapping', () => {
         const form = createElement('user');
         const email = addChild(form, 'email', createElement('user_email'));
         addConstraint(form, () => {
-            const error = new window.FpJsFormError('Email is already used.');
+            const error = new window.SvarohJsFormError('Email is already used.');
             error.atPath = 'email';
 
             return [error];
@@ -121,7 +121,7 @@ describe('FpJsFormValidator error mapping', () => {
         const address = addChild(form, 'address', createElement('user_address'));
         const street = addChild(address, 'street', createElement('user_address_street'));
         addConstraint(form, () => {
-            const error = new window.FpJsFormError('Street is required.');
+            const error = new window.SvarohJsFormError('Street is required.');
             error.atPath = 'address.street';
 
             return [error];
@@ -139,7 +139,7 @@ describe('FpJsFormValidator error mapping', () => {
     test('falls back to the validated element when a child path cannot be resolved', () => {
         const form = createElement('user');
         addConstraint(form, () => {
-            const error = new window.FpJsFormError('Payment method is invalid.');
+            const error = new window.SvarohJsFormError('Payment method is invalid.');
             error.atPath = 'payment';
 
             return [error];
@@ -163,7 +163,7 @@ describe('FpJsFormValidator error mapping', () => {
                 return [];
             }
 
-            const error = new window.FpJsFormError('Email is already used.');
+            const error = new window.SvarohJsFormError('Email is already used.');
             error.atPath = 'email';
 
             return [error];
@@ -190,10 +190,10 @@ describe('FpJsFormValidator error mapping', () => {
     });
 });
 
-describe('FpJsFormValidator submit flow', () => {
+describe('SvarohJsFormValidator submit flow', () => {
     afterEach(() => {
-        window.FpJsFormValidator.ajax.queue = 0;
-        window.FpJsFormValidator.ajax.callbacks = [];
+        window.SvarohJsFormValidator.ajax.queue = 0;
+        window.SvarohJsFormValidator.ajax.callbacks = [];
     });
 
     const createElement = (valid, form) => ({
@@ -207,7 +207,7 @@ describe('FpJsFormValidator submit flow', () => {
     });
 
     const submit = (element, event) => {
-        window.FpJsFormValidator.customizeMethods.submitForm.apply(
+        window.SvarohJsFormValidator.customizeMethods.submitForm.apply(
             [{ jsFormValidator: element }],
             [event],
         );
@@ -241,53 +241,53 @@ describe('FpJsFormValidator submit flow', () => {
         const form = { requestSubmit: jest.fn() };
         const event = { preventDefault: jest.fn(), submitter };
         const element = createElement(true, form);
-        window.FpJsFormValidator.ajax.queue = 1;
+        window.SvarohJsFormValidator.ajax.queue = 1;
 
         submit(element, event);
 
         expect(event.preventDefault).toHaveBeenCalledTimes(1);
-        expect(window.FpJsFormValidator.ajax.callbacks).toHaveLength(1);
+        expect(window.SvarohJsFormValidator.ajax.callbacks).toHaveLength(1);
         expect(form.requestSubmit).not.toHaveBeenCalled();
 
-        window.FpJsFormValidator.ajax.queue = 0;
-        window.FpJsFormValidator.ajax.callbacks[0]();
+        window.SvarohJsFormValidator.ajax.queue = 0;
+        window.SvarohJsFormValidator.ajax.callbacks[0]();
 
-        expect(form.__fpJsFormValidatorSubmitting).toBe(true);
+        expect(form.__svarohJsFormValidatorSubmitting).toBe(true);
         expect(form.requestSubmit).toHaveBeenCalledWith(submitter);
         expect(element.submitForm).not.toHaveBeenCalled();
     });
 
     test('allows a guarded re-submitted event to continue without validating again', () => {
-        const form = { __fpJsFormValidatorSubmitting: true };
+        const form = { __svarohJsFormValidatorSubmitting: true };
         const event = { preventDefault: jest.fn() };
         const element = createElement(true, form);
 
         submit(element, event);
 
-        expect(form.__fpJsFormValidatorSubmitting).toBeUndefined();
+        expect(form.__svarohJsFormValidatorSubmitting).toBeUndefined();
         expect(element.validateRecursively).not.toHaveBeenCalled();
         expect(event.preventDefault).not.toHaveBeenCalled();
     });
 });
 
-describe('FpJsFormValidator runtime helpers', () => {
+describe('SvarohJsFormValidator runtime helpers', () => {
     afterEach(() => {
         document.body.innerHTML = '';
-        window.FpJsFormValidator.forms = {};
-        window.FpJsFormValidator.constraintsCounter = 0;
-        window.FpJsFormValidator.ajax.queue = 0;
-        window.FpJsFormValidator.ajax.callbacks = [];
+        window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.constraintsCounter = 0;
+        window.SvarohJsFormValidator.ajax.queue = 0;
+        window.SvarohJsFormValidator.ajax.callbacks = [];
         delete window.AppConstraint;
         delete global.$;
     });
 
     test('formats constraint messages and values', () => {
-        expect(window.FpJsBaseConstraint.prepareMessage(
+        expect(window.SvarohJsBaseConstraint.prepareMessage(
             'One item|{{ count }} items',
             { '{{ count }}': 3 },
             3,
         )).toBe('3 items');
-        expect(window.FpJsBaseConstraint.prepareMessage(
+        expect(window.SvarohJsBaseConstraint.prepareMessage(
             'One item|{{ count }} items',
             { '{{ count }}': 1 },
             1,
@@ -295,14 +295,14 @@ describe('FpJsFormValidator runtime helpers', () => {
 
         const date = new Date(2026, 5, 5, 9, 4, 3);
         date.format = jest.fn(() => '2026-06-05 09:04:03');
-        expect(window.FpJsBaseConstraint.formatValue(date)).toBe('2026-06-05 09:04:03');
+        expect(window.SvarohJsBaseConstraint.formatValue(date)).toBe('2026-06-05 09:04:03');
         expect(date.format).toHaveBeenCalledWith('Y-m-d H:i:s');
-        expect(window.FpJsBaseConstraint.formatValue({})).toBe('object');
-        expect(window.FpJsBaseConstraint.formatValue([])).toBe('array');
-        expect(window.FpJsBaseConstraint.formatValue('name')).toBe('"name"');
-        expect(window.FpJsBaseConstraint.formatValue(null)).toBe('null');
-        expect(window.FpJsBaseConstraint.formatValue(true)).toBe('true');
-        expect(window.FpJsBaseConstraint.formatValue(15)).toBe('15');
+        expect(window.SvarohJsBaseConstraint.formatValue({})).toBe('object');
+        expect(window.SvarohJsBaseConstraint.formatValue([])).toBe('array');
+        expect(window.SvarohJsBaseConstraint.formatValue('name')).toBe('"name"');
+        expect(window.SvarohJsBaseConstraint.formatValue(null)).toBe('null');
+        expect(window.SvarohJsBaseConstraint.formatValue(true)).toBe('true');
+        expect(window.SvarohJsBaseConstraint.formatValue(15)).toBe('15');
     });
 
     test('creates elements with DOM nodes, constraints, getters, and transformers', () => {
@@ -316,7 +316,7 @@ describe('FpJsFormValidator runtime helpers', () => {
             };
         };
 
-        const element = window.FpJsFormValidator.createElement({
+        const element = window.SvarohJsFormValidator.createElement({
             id: 'email',
             name: 'profile[email]',
             type: '',
@@ -351,15 +351,15 @@ describe('FpJsFormValidator runtime helpers', () => {
         expect(element.data.form.constraints[0].uniqueId).toBe(0);
         expect(element.data.form.getters.customValue).toHaveLength(1);
         expect(element.transformers).toHaveLength(1);
-        expect(window.FpJsFormValidator.getElementValue(element)).toBe(true);
+        expect(window.SvarohJsFormValidator.getElementValue(element)).toBe(true);
     });
 
     test('validates constraints, callback getters, and dynamic validation groups', () => {
-        const parent = new window.FpJsFormElement();
+        const parent = new window.SvarohJsFormElement();
         parent.id = 'profile';
         parent.groups = jest.fn(() => ['Custom']);
 
-        const element = new window.FpJsFormElement();
+        const element = new window.SvarohJsFormElement();
         element.id = 'profile_name';
         element.parent = parent;
         element.domNode = document.createElement('input');
@@ -384,88 +384,88 @@ describe('FpJsFormValidator runtime helpers', () => {
             },
         };
 
-        const errors = window.FpJsFormValidator.validateElement(element);
+        const errors = window.SvarohJsFormValidator.validateElement(element);
 
         expect(parent.groups).toHaveBeenCalled();
         expect(fieldConstraint.validate).toHaveBeenCalledWith('value', element);
         expect(getterConstraint.validate).toHaveBeenCalledWith('callback-value', element);
         expect(errors.map((error) => error.message)).toEqual(['Field error.', 'Getter error.']);
-        expect(window.FpJsFormValidator.checkValidationGroups(['Other'], fieldConstraint)).toBe(false);
+        expect(window.SvarohJsFormValidator.checkValidationGroups(['Other'], fieldConstraint)).toBe(false);
     });
 
     test('checks embedded validity rules and valid constraints', () => {
         const validConstraint = new window.SymfonyComponentValidatorConstraintsValid();
-        const element = new window.FpJsFormElement();
+        const element = new window.SvarohJsFormElement();
         element.data.form = { constraints: [validConstraint] };
 
-        expect(window.FpJsFormValidator.getElementValidConstraint(element)).toBe(validConstraint);
-        expect(window.FpJsFormValidator.shouldValidEmbedded(element)).toBe(true);
+        expect(window.SvarohJsFormValidator.getElementValidConstraint(element)).toBe(validConstraint);
+        expect(window.SvarohJsFormValidator.shouldValidEmbedded(element)).toBe(true);
 
-        const collectionChild = new window.FpJsFormElement();
+        const collectionChild = new window.SvarohJsFormElement();
         collectionChild.parent = {
             type: 'Symfony\\Component\\Form\\Extension\\Core\\Type\\CollectionType',
         };
 
-        expect(window.FpJsFormValidator.shouldValidEmbedded(collectionChild)).toBe(true);
-        expect(window.FpJsFormValidator.shouldValidEmbedded(new window.FpJsFormElement())).toBe(false);
+        expect(window.SvarohJsFormValidator.shouldValidEmbedded(collectionChild)).toBe(true);
+        expect(window.SvarohJsFormValidator.shouldValidEmbedded(new window.SvarohJsFormElement())).toBe(false);
     });
 
     test('extracts values from checkbox, select, collection, and mapped children', () => {
-        const checkbox = new window.FpJsFormElement();
+        const checkbox = new window.SvarohJsFormElement();
         checkbox.type = 'Symfony\\Component\\Form\\Extension\\Core\\Type\\CheckboxType';
         checkbox.domNode = { checked: true };
 
         const selectNode = document.createElement('select');
         selectNode.multiple = true;
         selectNode.innerHTML = '<option value="a" selected>A</option><option value="b">B</option><option value="c" selected>C</option>';
-        const select = new window.FpJsFormElement();
+        const select = new window.SvarohJsFormElement();
         select.type = '';
         select.domNode = selectNode;
 
-        const child = new window.FpJsFormElement();
+        const child = new window.SvarohJsFormElement();
         child.name = 'child';
         child.domNode = { value: 'child-value', tagName: 'input' };
-        const collection = new window.FpJsFormElement();
+        const collection = new window.SvarohJsFormElement();
         collection.type = 'Symfony\\Component\\Form\\Extension\\Core\\Type\\CollectionType';
         collection.children = { first: child };
 
-        const mapped = new window.FpJsFormElement();
+        const mapped = new window.SvarohJsFormElement();
         mapped.children = { child };
         mapped.transformers = [{
             reverseTransform: jest.fn((value) => value.child),
         }];
 
-        expect(window.FpJsFormValidator.getElementValue(checkbox)).toBe(true);
-        expect(window.FpJsFormValidator.getElementValue(select)).toEqual(['c', 'a']);
-        expect(window.FpJsFormValidator.getElementValue(collection)).toEqual({ first: 'child-value' });
-        expect(window.FpJsFormValidator.getElementValue(mapped)).toBe('child-value');
+        expect(window.SvarohJsFormValidator.getElementValue(checkbox)).toBe(true);
+        expect(window.SvarohJsFormValidator.getElementValue(select)).toEqual(['c', 'a']);
+        expect(window.SvarohJsFormValidator.getElementValue(collection)).toEqual({ first: 'child-value' });
+        expect(window.SvarohJsFormValidator.getElementValue(mapped)).toBe('child-value');
     });
 
     test('finds DOM nodes and forms through ids, names, and descendants', () => {
         document.body.innerHTML = '<form id="profile"><div><input name="profile[email]" value="a@b.test"></div></form>';
-        const named = window.FpJsFormValidator.findDomElement({
+        const named = window.SvarohJsFormValidator.findDomElement({
             id: 'missing',
             name: 'profile[email]',
         });
-        const formElement = new window.FpJsFormElement();
+        const formElement = new window.SvarohJsFormElement();
         formElement.id = 'profile';
         formElement.domNode = document.getElementById('profile');
-        const child = new window.FpJsFormElement();
+        const child = new window.SvarohJsFormElement();
         child.domNode = named;
         formElement.children.email = child;
 
         expect(named).toBe(document.getElementsByName('profile[email]')[0]);
-        expect(window.FpJsFormValidator.findFormElement(formElement)).toBe(formElement.domNode);
-        expect(window.FpJsFormValidator.findFormElement({ domNode: null, children: { email: child } })).toBe(formElement.domNode);
-        expect(window.FpJsFormValidator.findParentForm(named)).toBe(formElement.domNode);
-        expect(window.FpJsFormValidator.findParentForm(document.createTextNode('orphan'))).toBeNull();
-        expect(window.FpJsFormValidator.findRealChildElement({ domNode: null, children: { email: child } })).toBe(named);
+        expect(window.SvarohJsFormValidator.findFormElement(formElement)).toBe(formElement.domNode);
+        expect(window.SvarohJsFormValidator.findFormElement({ domNode: null, children: { email: child } })).toBe(formElement.domNode);
+        expect(window.SvarohJsFormValidator.findParentForm(named)).toBe(formElement.domNode);
+        expect(window.SvarohJsFormValidator.findParentForm(document.createTextNode('orphan'))).toBeNull();
+        expect(window.SvarohJsFormValidator.findRealChildElement({ domNode: null, children: { email: child } })).toBe(named);
     });
 
     test('renders, clears, and bubbles errors through DOM helpers', () => {
         document.body.innerHTML = '<form id="profile"><input id="profile_email"></form>';
         const input = document.getElementById('profile_email');
-        const element = new window.FpJsFormElement();
+        const element = new window.SvarohJsFormElement();
         element.id = 'profile_email';
         element.domNode = input;
 
@@ -481,50 +481,50 @@ describe('FpJsFormValidator runtime helpers', () => {
         element.clearErrors('source-one');
         expect(element.errors['source-one']).toEqual([]);
 
-        const root = new window.FpJsFormElement();
-        const child = new window.FpJsFormElement();
+        const root = new window.SvarohJsFormElement();
+        const child = new window.SvarohJsFormElement();
         child.parent = root;
         child.bubbling = true;
         root.children.child = child;
 
-        expect(window.FpJsFormValidator.getErrorPathElement(child)).toBe(root);
-        expect(window.FpJsFormValidator.getRootElement(child)).toBe(root);
-        expect(window.FpJsFormValidator.findErrorDomNode(root)).toBeNull();
+        expect(window.SvarohJsFormValidator.getErrorPathElement(child)).toBe(root);
+        expect(window.SvarohJsFormValidator.getRootElement(child)).toBe(root);
+        expect(window.SvarohJsFormValidator.findErrorDomNode(root)).toBeNull();
     });
 
     test('collects nested errors and utility lengths', () => {
-        const root = new window.FpJsFormElement();
+        const root = new window.SvarohJsFormElement();
         root.id = 'root';
         root.errors = { rootSource: ['Root error.'] };
-        const child = new window.FpJsFormElement();
+        const child = new window.SvarohJsFormElement();
         child.id = 'child';
         child.errors = { childSource: [] };
         root.children.child = child;
 
-        expect(window.FpJsFormValidator.getAllErrors(root, null)).toEqual({
+        expect(window.SvarohJsFormValidator.getAllErrors(root, null)).toEqual({
             root: { rootSource: ['Root error.'] },
         });
-        expect(window.FpJsFormValidator.cloneObject({ nested: { value: 1 }, list: [1, 2] })).toEqual({
+        expect(window.SvarohJsFormValidator.cloneObject({ nested: { value: 1 }, list: [1, 2] })).toEqual({
             nested: { value: 1 },
             list: [1, 2],
         });
-        expect(window.FpJsFormValidator.isValueEmty(undefined)).toBe(true);
-        expect(window.FpJsFormValidator.isValueEmty('')).toBe(true);
-        expect(window.FpJsFormValidator.isValueEmty('x')).toBe(false);
-        expect(window.FpJsFormValidator.isValueArray([])).toBe(true);
-        expect(window.FpJsFormValidator.isValueObject({})).toBe(true);
-        expect(window.FpJsFormValidator.getValueLength({ a: 1, b: 2 })).toBe(2);
-        expect(window.FpJsFormValidator.getValueLength(12)).toBeUndefined();
+        expect(window.SvarohJsFormValidator.isValueEmty(undefined)).toBe(true);
+        expect(window.SvarohJsFormValidator.isValueEmty('')).toBe(true);
+        expect(window.SvarohJsFormValidator.isValueEmty('x')).toBe(false);
+        expect(window.SvarohJsFormValidator.isValueArray([])).toBe(true);
+        expect(window.SvarohJsFormValidator.isValueObject({})).toBe(true);
+        expect(window.SvarohJsFormValidator.getValueLength({ a: 1, b: 2 })).toBe(2);
+        expect(window.SvarohJsFormValidator.getValueLength(12)).toBeUndefined();
     });
 
     test('customizes elements and reports unknown methods', () => {
         const domNode = document.createElement('input');
-        const element = new window.FpJsFormElement();
+        const element = new window.SvarohJsFormElement();
         element.validate = jest.fn(() => true);
         element.validateRecursively = jest.fn(() => true);
         domNode.jsFormValidator = element;
 
-        window.FpJsFormValidator.customize(domNode, {
+        window.SvarohJsFormValidator.customize(domNode, {
             customEvents: function () {
                 this.customEventsAttached = true;
             },
@@ -533,17 +533,17 @@ describe('FpJsFormValidator runtime helpers', () => {
 
         expect(domNode.customEventsAttached).toBe(true);
         expect(element.onValidate).toBe('callback');
-        expect(window.FpJsFormValidator.customize(domNode)).toEqual([element]);
-        expect(window.FpJsFormValidator.customize(domNode, 'validate', { recursive: true, findUniqueConstraint: false })).toBe(true);
+        expect(window.SvarohJsFormValidator.customize(domNode)).toEqual([element]);
+        expect(window.SvarohJsFormValidator.customize(domNode, 'validate', { recursive: true, findUniqueConstraint: false })).toBe(true);
         expect(element.validateRecursively).toHaveBeenCalled();
 
         global.$ = { error: jest.fn() };
-        expect(window.FpJsFormValidator.customize(domNode, 'missingMethod')).toBe(window.FpJsFormValidator);
+        expect(window.SvarohJsFormValidator.customize(domNode, 'missingMethod')).toBe(window.SvarohJsFormValidator);
         expect(global.$.error).toHaveBeenCalledWith('Method missingMethod does not exist');
     });
 
     test('serializes and completes ajax requests', () => {
-        const ajax = window.FpJsFormValidator.ajax;
+        const ajax = window.SvarohJsFormValidator.ajax;
         const request = {
             open: jest.fn(),
             setRequestHeader: jest.fn(),

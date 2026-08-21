@@ -10,14 +10,14 @@ export default function SymfonyComponentValidatorConstraintsEqualTo() {
 
     this.validate = function (value) {
         var errors = [];
-        var f = FpJsFormValidator;
+        var f = SvarohJsFormValidator;
 
         if (!f.isValueEmty(value) && this.value != value) {
             errors.push(
                 this.message
-                    .replace('{{ value }}', FpJsBaseConstraint.formatValue(value))
-                    .replace('{{ compared_value }}', FpJsBaseConstraint.formatValue(this.value))
-                    .replace('{{ compared_value_type }}', FpJsBaseConstraint.formatValue(this.value))
+                    .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
+                    .replace('{{ compared_value }}', SvarohJsBaseConstraint.formatValue(this.value))
+                    .replace('{{ compared_value_type }}', SvarohJsBaseConstraint.formatValue(this.value))
             );
         }
 
