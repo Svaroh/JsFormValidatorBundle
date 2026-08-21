@@ -1,7 +1,7 @@
 import './constraints';
 import './transformers';
 
-export function FpJsFormError(message) {
+export function SvarohJsFormError(message) {
     this.message = message;
     this.atPath = null;
 
@@ -30,7 +30,7 @@ export function FpJsFormError(message) {
     };
 }
 
-export function FpJsFormElement() {
+export function SvarohJsFormElement() {
     this.id = '';
     this.name = '';
     this.type = '';
@@ -59,7 +59,7 @@ export function FpJsFormElement() {
             return true;
         }
 
-        var validationErrors = FpJsFormValidator.validateElement(self);
+        var validationErrors = SvarohJsFormValidator.validateElement(self);
         var invalidTargets = [];
         for (var index = 0; index < validationErrors.length; index++) {
             var validationError = validationErrors[index];
@@ -83,8 +83,8 @@ export function FpJsFormElement() {
 
         for (var i = 0; i < invalidTargets.length; i++) {
             var target = invalidTargets[i];
-            var errorPath = FpJsFormValidator.getErrorPathElement(target);
-            var domNode = FpJsFormValidator.findErrorDomNode(errorPath);
+            var errorPath = SvarohJsFormValidator.getErrorPathElement(target);
+            var domNode = SvarohJsFormValidator.findErrorDomNode(errorPath);
             if (domNode) {
                 errorPath.showErrors.apply(domNode, [target.errors[sourceId], sourceId]);
             }
@@ -124,7 +124,7 @@ export function FpJsFormElement() {
             }
         } else {
             this.errors[sourceId] = [];
-            var domNode = FpJsFormValidator.findErrorDomNode(this);
+            var domNode = SvarohJsFormValidator.findErrorDomNode(this);
             if (domNode) {
                 this.showErrors.apply(domNode, [this.errors[sourceId], sourceId]);
             }
@@ -147,7 +147,7 @@ export function FpJsFormElement() {
          * @type {HTMLElement}
          */
         var domNode = this;
-        var ul = FpJsFormValidator.getDefaultErrorContainerNode(domNode);
+        var ul = SvarohJsFormValidator.getDefaultErrorContainerNode(domNode);
         if (ul) {
             var len = ul.childNodes.length;
             while (len--) {
@@ -166,7 +166,7 @@ export function FpJsFormElement() {
 
         if (!ul) {
             ul = document.createElement('ul');
-            ul.className = FpJsFormValidator.errorClass;
+            ul.className = SvarohJsFormValidator.errorClass;
             domNode.parentNode.insertBefore(ul, domNode);
         }
 
@@ -187,7 +187,7 @@ export function FpJsFormElement() {
     };
 }
 
-function FpJsAjaxRequest() {
+function SvarohJsAjaxRequest() {
     this.queue = 0;
     this.callbacks = [];
 
@@ -272,9 +272,9 @@ function FpJsAjaxRequest() {
     };
 }
 
-function FpJsCustomizeMethods() {
+function SvarohJsCustomizeMethods() {
     this.init = function (options) {
-        FpJsFormValidator.each(this, function (item) {
+        SvarohJsFormValidator.each(this, function (item) {
             if (!item.jsFormValidator) {
                 item.jsFormValidator = {};
             }
@@ -297,7 +297,7 @@ function FpJsCustomizeMethods() {
     this.validate = function (opts) {
         var isValid = true;
         //noinspection JSCheckFunctionSignatures
-        FpJsFormValidator.each(this, function (item) {
+        SvarohJsFormValidator.each(this, function (item) {
             var method = (opts && true === opts['recursive'])
                 ? 'validateRecursively'
                 : 'validate';
@@ -308,7 +308,7 @@ function FpJsCustomizeMethods() {
                 if (data['entity'] && data['entity']['constraints']) {
                     for (var i in data['entity']['constraints']) {
                         var constraint = data['entity']['constraints'][i];
-                        if (constraint instanceof FpJsFormValidatorBundleFormConstraintUniqueEntity && constraint.fields.indexOf(item.jsFormValidator.name) > -1) {
+                        if (constraint instanceof SvarohJsFormValidatorBundleFormConstraintUniqueEntity && constraint.fields.indexOf(item.jsFormValidator.name) > -1) {
                             var owner = item.jsFormValidator.parent;
                             constraint.validate(null, owner);
                         }
@@ -326,7 +326,7 @@ function FpJsCustomizeMethods() {
 
     this.showErrors = function (opts) {
         //noinspection JSCheckFunctionSignatures
-        FpJsFormValidator.each(this, function (item) {
+        SvarohJsFormValidator.each(this, function (item) {
             item.jsFormValidator.errors[opts['sourceId']] = opts['errors'];
             item.jsFormValidator.showErrors.apply(item, [opts['errors'], opts['sourceId']]);
         });
@@ -334,18 +334,18 @@ function FpJsCustomizeMethods() {
 
     this.submitForm = function (event) {
         //noinspection JSCheckFunctionSignatures
-        FpJsFormValidator.each(this, function (item) {
+        SvarohJsFormValidator.each(this, function (item) {
             var element = item.jsFormValidator;
 
-            if (event && element.domNode && element.domNode.__fpJsFormValidatorSubmitting) {
-                delete element.domNode.__fpJsFormValidatorSubmitting;
+            if (event && element.domNode && element.domNode.__svarohJsFormValidatorSubmitting) {
+                delete element.domNode.__svarohJsFormValidatorSubmitting;
                 return;
             }
 
             element.validateRecursively();
-            var hasAjaxQueue = FpJsFormValidator.ajax.queue > 0;
+            var hasAjaxQueue = SvarohJsFormValidator.ajax.queue > 0;
             var submitCallback = function () {
-                element.onValidate.apply(element.domNode, [FpJsFormValidator.getAllErrors(element, {}), event]);
+                element.onValidate.apply(element.domNode, [SvarohJsFormValidator.getAllErrors(element, {}), event]);
                 if (!element.isValid()) {
                     if (event) {
                         event.preventDefault();
@@ -358,7 +358,7 @@ function FpJsCustomizeMethods() {
                     element.submitForm.apply(item, [item]);
                 } else if (hasAjaxQueue) {
                     if (element.domNode && typeof element.domNode.requestSubmit === 'function') {
-                        element.domNode.__fpJsFormValidatorSubmitting = true;
+                        element.domNode.__svarohJsFormValidatorSubmitting = true;
                         if (event.submitter) {
                             element.domNode.requestSubmit(event.submitter);
                         } else {
@@ -374,7 +374,7 @@ function FpJsCustomizeMethods() {
                 if (event) {
                     event.preventDefault();
                 }
-                FpJsFormValidator.ajax.callbacks.push(submitCallback);
+                SvarohJsFormValidator.ajax.callbacks.push(submitCallback);
             } else {
                 submitCallback();
             }
@@ -384,7 +384,7 @@ function FpJsCustomizeMethods() {
     this.get = function () {
         var elements = [];
         //noinspection JSCheckFunctionSignatures
-        FpJsFormValidator.each(this, function (item) {
+        SvarohJsFormValidator.each(this, function (item) {
             elements.push(item.jsFormValidator);
         });
 
@@ -394,12 +394,12 @@ function FpJsCustomizeMethods() {
     //noinspection JSUnusedGlobalSymbols
     this.addPrototype = function(name) {
         //noinspection JSCheckFunctionSignatures
-        FpJsFormValidator.each(this, function (item) {
-            var prototype = FpJsFormValidator.preparePrototype(
-                FpJsFormValidator.cloneObject(item.jsFormValidator.prototype),
+        SvarohJsFormValidator.each(this, function (item) {
+            var prototype = SvarohJsFormValidator.preparePrototype(
+                SvarohJsFormValidator.cloneObject(item.jsFormValidator.prototype),
                 name
             );
-            item.jsFormValidator.children[name] = FpJsFormValidator.createElement(prototype);
+            item.jsFormValidator.children[name] = SvarohJsFormValidator.createElement(prototype);
             item.jsFormValidator.children[name].parent = item.jsFormValidator;
         });
     };
@@ -407,13 +407,13 @@ function FpJsCustomizeMethods() {
     //noinspection JSUnusedGlobalSymbols
     this.delPrototype = function(name) {
         //noinspection JSCheckFunctionSignatures
-        FpJsFormValidator.each(this, function (item) {
+        SvarohJsFormValidator.each(this, function (item) {
             delete (item.jsFormValidator.children[name]);
         });
     };
 }
 
-var FpJsBaseConstraint = {
+var SvarohJsBaseConstraint = {
     prepareMessage: function (message, params, plural) {
         var realMsg = message;
         var listMsg = message.split('|');
@@ -459,12 +459,12 @@ var FpJsBaseConstraint = {
     }
 };
 
-var FpJsFormValidator = new function () {
+var SvarohJsFormValidator = new function () {
     this.forms = {};
     this.errorClass = 'form-errors';
     this.config = {};
-    this.ajax = new FpJsAjaxRequest();
-    this.customizeMethods = new FpJsCustomizeMethods();
+    this.ajax = new SvarohJsAjaxRequest();
+    this.customizeMethods = new SvarohJsCustomizeMethods();
     this.constraintsCounter = 0;
 
     //noinspection JSUnusedGlobalSymbols
@@ -509,10 +509,10 @@ var FpJsFormValidator = new function () {
     /**
      * @param {Object} model
      *
-     * @return {FpJsFormElement}
+     * @return {SvarohJsFormElement}
      */
     this.createElement = function (model) {
-        var element = new FpJsFormElement();
+        var element = new SvarohJsFormElement();
         element.domNode = this.findDomElement(model);
         if (model.children instanceof Array && !model.length && !element.domNode) {
             return null;
@@ -557,7 +557,7 @@ var FpJsFormValidator = new function () {
     };
 
     /**
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      */
     this.validateElement = function (element) {
         var errors = [];
@@ -628,7 +628,7 @@ var FpJsFormValidator = new function () {
      * @param value
      * @param {Array} constraints
      * @param {Array} groups
-     * @param {FpJsFormElement} owner
+     * @param {SvarohJsFormElement} owner
      *
      * @return {Array}
      */
@@ -643,7 +643,7 @@ var FpJsFormValidator = new function () {
 
         for (var index = 0; index < errors.length; index++) {
             if (typeof errors[index] === 'string') {
-                errors[index] = new FpJsFormError(errors[index]);
+                errors[index] = new SvarohJsFormError(errors[index]);
             }
         }
 
@@ -671,7 +671,7 @@ var FpJsFormValidator = new function () {
     };
 
     /**
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      */
     this.getElementValue = function (element) {
         var i = element.transformers.length;
@@ -793,7 +793,7 @@ var FpJsFormValidator = new function () {
 
     /**
      * @param {String} id
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      */
     this.getParentElementById = function (id, element) {
         if (id == element.id) {
@@ -806,7 +806,7 @@ var FpJsFormValidator = new function () {
     };
 
     /**
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      */
     this.attachElement = function (element) {
         if (!element.domNode) {
@@ -823,12 +823,12 @@ var FpJsFormValidator = new function () {
     };
 
     /**
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      * @param {HTMLFormElement} form
      */
     this.attachDefaultEvent = function (element, form) {
         form.addEventListener('submit', function (event) {
-            FpJsFormValidator.customize(form, 'submitForm', event);
+            SvarohJsFormValidator.customize(form, 'submitForm', event);
         });
     };
 
@@ -850,7 +850,7 @@ var FpJsFormValidator = new function () {
     };
 
     /**
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      *
      * @return {HTMLFormElement|null}
      */
@@ -869,7 +869,7 @@ var FpJsFormValidator = new function () {
     };
 
     /**
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      *
      * @return {HTMLElement|null}
      */
@@ -917,7 +917,7 @@ var FpJsFormValidator = new function () {
 
     /**
      * Get related element to show error list
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      */
     this.getErrorPathElement = function (element) {
         if (!element.bubbling) {
@@ -929,7 +929,7 @@ var FpJsFormValidator = new function () {
 
     /**
      * Find recursively for the root (from) element
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      */
     this.getRootElement = function (element) {
         if (element.parent) {
@@ -999,7 +999,7 @@ var FpJsFormValidator = new function () {
     /**
      * Looks for the callback in a specified element by string or array
      *
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      * @param {Array|String} data
      * @returns {Function|null}
      */
@@ -1033,7 +1033,7 @@ var FpJsFormValidator = new function () {
     /**
      * Returns an object with all the element's and children's errors
      *
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      * @param {Object} container
      *
      * @returns {Object}
@@ -1161,7 +1161,7 @@ var FpJsFormValidator = new function () {
     };
 }();
 
-window.FpJsBaseConstraint = FpJsBaseConstraint;
-window.FpJsFormError = FpJsFormError;
-window.FpJsFormValidator = FpJsFormValidator;
-window.FpJsFormElement = FpJsFormElement;
+window.SvarohJsBaseConstraint = SvarohJsBaseConstraint;
+window.SvarohJsFormError = SvarohJsFormError;
+window.SvarohJsFormValidator = SvarohJsFormValidator;
+window.SvarohJsFormElement = SvarohJsFormElement;

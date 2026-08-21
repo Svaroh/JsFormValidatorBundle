@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsType from './Type';
 
 const constraintsType = new SymfonyComponentValidatorConstraintsType();

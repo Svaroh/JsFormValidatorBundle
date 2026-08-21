@@ -5,7 +5,7 @@ export default function SymfonyComponentValidatorConstraintsCallback() {
 
     /**
      * @param {*} value
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      */
     this.validate = function(value, element) {
         if (!this.callback) {
@@ -16,7 +16,7 @@ export default function SymfonyComponentValidatorConstraintsCallback() {
         }
 
         for (var i in this.methods) {
-            var method = FpJsFormValidator.getRealCallback(element, this.methods[i]);
+            var method = SvarohJsFormValidator.getRealCallback(element, this.methods[i]);
             if (null !== method) {
                 method.apply(element.domNode);
             } else {

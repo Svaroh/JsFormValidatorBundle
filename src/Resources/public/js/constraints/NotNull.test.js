@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsNotNull from './NotNull';
 
 const constraintsNotNull = new SymfonyComponentValidatorConstraintsNotNull();

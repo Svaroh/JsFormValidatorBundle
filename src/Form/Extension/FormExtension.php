@@ -1,8 +1,8 @@
 <?php
-namespace Fp\JsFormValidatorBundle\Form\Extension;
+namespace Svaroh\JsFormValidatorBundle\Form\Extension;
 
-use Fp\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
-use Fp\JsFormValidatorBundle\Form\Subscriber\SubscriberToQueue;
+use Svaroh\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
+use Svaroh\JsFormValidatorBundle\Form\Subscriber\SubscriberToQueue;
 use Symfony\Component\Form\AbstractTypeExtension;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -11,7 +11,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 /**
  * Class FormExtension
  *
- * @package Fp\JsFormValidatorBundle\Form\Extension
+ * @package Svaroh\JsFormValidatorBundle\Form\Extension
  */
 class FormExtension extends AbstractTypeExtension
 {

@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsNotBlank from './NotBlank';
 
 const constraintNotBlank = new SymfonyComponentValidatorConstraintsNotBlank();
@@ -7,7 +7,7 @@ constraintNotBlank.message = '{{ value }} have to be not blank';
 test.each([
     [0, []],
     [[0], []],
-    ['FpJsFormValidator', []],
+    ['SvarohJsFormValidator', []],
     ['', ['\"\" have to be not blank']],
     [null, ['null have to be not blank']],
     [undefined, ['undefined have to be not blank']],

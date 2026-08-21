@@ -10,10 +10,10 @@ export default function SymfonyComponentValidatorConstraintsIp() {
     this.validate = function (value) {
         var regexp = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
         var errors = [];
-        var f = FpJsFormValidator;
+        var f = SvarohJsFormValidator;
 
         if (!f.isValueEmty(value) && !regexp.test(value)) {
-            errors.push(this.message.replace('{{ value }}', FpJsBaseConstraint.formatValue(value)));
+            errors.push(this.message.replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value)));
         }
 
         return errors;

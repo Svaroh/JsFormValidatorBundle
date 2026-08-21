@@ -75,7 +75,7 @@ export default function SymfonyComponentValidatorConstraintsType() {
         if (!isValid) {
             errors.push(
                 this.message
-                    .replace('{{ value }}', FpJsBaseConstraint.formatValue(value))
+                    .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
                     .replace('{{ type }}', this.type)
             );
         }

@@ -23,7 +23,7 @@ The `.envrc` file uses `use flake`; run `direnv allow` once if you use direnv.
 ## Setup
 
 ```bash
-git clone https://github.com/formapro/JsFormValidatorBundle.git
+git clone https://github.com/Svaroh/JsFormValidatorBundle.git
 cd JsFormValidatorBundle
 nix develop
 composer update

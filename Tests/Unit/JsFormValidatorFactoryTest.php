@@ -1,10 +1,10 @@
 <?php
 
-namespace Fp\JsFormValidatorBundle\Tests\Unit;
+namespace Svaroh\JsFormValidatorBundle\Tests\Unit;
 
-use Fp\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
-use Fp\JsFormValidatorBundle\Form\Extension\FormExtension;
-use Fp\JsFormValidatorBundle\Form\Constraint\UniqueEntity as JsUniqueEntity;
+use Svaroh\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
+use Svaroh\JsFormValidatorBundle\Form\Extension\FormExtension;
+use Svaroh\JsFormValidatorBundle\Form\Constraint\UniqueEntity as JsUniqueEntity;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity as SymfonyUniqueEntity;
 use Symfony\Component\Form\ChoiceList\ArrayChoiceList;
@@ -31,8 +31,8 @@ class JsFormValidatorFactoryTest extends TestCase
         $router
             ->expects($this->once())
             ->method('generate')
-            ->with('fp_js_form_validator.check_unique_entity')
-            ->willReturn('/fp_js_form_validator/check_unique_entity')
+            ->with('svaroh_js_form_validator.check_unique_entity')
+            ->willReturn('/svaroh_js_form_validator/check_unique_entity')
         ;
 
         $factory = new JsFormValidatorFactory(
@@ -42,7 +42,7 @@ class JsFormValidatorFactoryTest extends TestCase
             array(
                 'js_validation' => true,
                 'routing' => array(
-                    'check_unique_entity' => 'fp_js_form_validator.check_unique_entity',
+                    'check_unique_entity' => 'svaroh_js_form_validator.check_unique_entity',
                 ),
             ),
             'validators'
@@ -68,7 +68,7 @@ class JsFormValidatorFactoryTest extends TestCase
         $this->assertSame(TextType::class, $model->children['name']->type);
         $this->assertArrayHasKey(NotBlank::class, $model->children['name']->data['form']['constraints']);
         $this->assertSame(
-            '/fp_js_form_validator/check_unique_entity',
+            '/svaroh_js_form_validator/check_unique_entity',
             $config->routing['check_unique_entity']
         );
     }
@@ -139,7 +139,7 @@ class JsFormValidatorFactoryTest extends TestCase
         $this->assertSame('/existing_route', $config->routing['existing']);
         $this->assertNull($config->routing['missing']);
         $this->assertSame(
-            '<script type="text/javascript">FpJsFormValidator.config = {\'routing\':{\'existing\':\'/existing_route\',\'missing\':null}};</script>',
+            '<script type="text/javascript">SvarohJsFormValidator.config = {\'routing\':{\'existing\':\'/existing_route\',\'missing\':null}};</script>',
             $factory->getJsConfigString()
         );
         $this->assertSame(
@@ -200,7 +200,7 @@ class JsFormValidatorFactoryTest extends TestCase
 
         $javascript = $factory->getJsValidatorString('profile', false);
 
-        $this->assertStringContainsString('FpJsFormValidator.addModel({\'id\':\'profile\'', $javascript);
+        $this->assertStringContainsString('SvarohJsFormValidator.addModel({\'id\':\'profile\'', $javascript);
         $this->assertStringEndsWith(', false);', $javascript);
         $this->assertSame(array(), $factory->getQueue());
     }
@@ -211,7 +211,7 @@ class JsFormValidatorFactoryTest extends TestCase
         $formFactory = $this->createFormFactory($factory);
         $formFactory->createNamedBuilder('profile', FormType::class)->getForm();
 
-        $this->expectException(\Fp\JsFormValidatorBundle\Exception\UndefinedFormException::class);
+        $this->expectException(\Svaroh\JsFormValidatorBundle\Exception\UndefinedFormException::class);
         $this->expectExceptionMessage("Form 'missing' was not found. Existing forms: profile");
 
         $factory->getJsValidatorString('missing');

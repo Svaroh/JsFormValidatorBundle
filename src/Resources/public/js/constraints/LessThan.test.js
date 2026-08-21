@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsLessThan from './LessThan';
 
 const constraintsLessThan = new SymfonyComponentValidatorConstraintsLessThan();

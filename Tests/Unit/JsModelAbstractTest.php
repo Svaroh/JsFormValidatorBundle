@@ -1,8 +1,8 @@
 <?php
 
-namespace Fp\JsFormValidatorBundle\Tests\Unit;
+namespace Svaroh\JsFormValidatorBundle\Tests\Unit;
 
-use Fp\JsFormValidatorBundle\Model\JsModelAbstract;
+use Svaroh\JsFormValidatorBundle\Model\JsModelAbstract;
 use PHPUnit\Framework\TestCase;
 
 class JsModelAbstractTest extends TestCase

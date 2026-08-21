@@ -10,13 +10,13 @@ export default function SymfonyComponentValidatorConstraintsUrl() {
     this.validate = function(value, element) {
         var regexp = /(ftp|https?):\/\/(www\.)?[\w\-\.@:%_\+~#=]+\.\w{2,3}(\/\w+)*(\?.*)?/;
         var errors = [];
-        var f = FpJsFormValidator;
+        var f = SvarohJsFormValidator;
 
         if (!f.isValueEmty(value) && !regexp.test(value)) {
             if (!element.domNode.value.startsWith('http://')) {
                 element.domNode.value = 'http://' + value;
             }
-            errors.push(this.message.replace('{{ value }}', FpJsBaseConstraint.formatValue('http://' + value)));
+            errors.push(this.message.replace('{{ value }}', SvarohJsBaseConstraint.formatValue('http://' + value)));
         }
 
         return errors;

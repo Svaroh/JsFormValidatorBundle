@@ -2,7 +2,7 @@
 /**
  * Created by ymaltsev on 11/26/13.
  */
-export default function FpJsFormValidatorBundleFormConstraintUniqueEntity() {
+export default function SvarohJsFormValidatorBundleFormConstraintUniqueEntity() {
     this.message          = 'This value is already used.';
     this.service          = 'doctrine.orm.validator.unique';
     this.em               = null;
@@ -17,12 +17,12 @@ export default function FpJsFormValidatorBundleFormConstraintUniqueEntity() {
 
     /**
      * @param {*} value
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      */
     this.validate = function(value, element) {
         var self   = this;
         var route  = null;
-        var config = FpJsFormValidator.config;
+        var config = SvarohJsFormValidator.config;
         var errorPath = this.getErrorPathElement(element);
 
         if (config['routing'] && config['routing']['check_unique_entity']) {
@@ -33,7 +33,7 @@ export default function FpJsFormValidatorBundleFormConstraintUniqueEntity() {
             return [];
         }
 
-        FpJsFormValidator.ajax.sendRequest(
+        SvarohJsFormValidator.ajax.sendRequest(
             route,
             {
                 message:          this.message,
@@ -55,7 +55,7 @@ export default function FpJsFormValidatorBundleFormConstraintUniqueEntity() {
                 if (false === response) {
                     errors.push(self.message);
                 }
-                FpJsFormValidator.customize(errorPath.domNode, 'showErrors', {
+                SvarohJsFormValidator.customize(errorPath.domNode, 'showErrors', {
                     errors: errors,
                     sourceId: 'unique-entity-' + self.uniqueId
                 });
@@ -72,7 +72,7 @@ export default function FpJsFormValidatorBundleFormConstraintUniqueEntity() {
     };
 
     /**
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      * @param {Array} fields
      * @returns {{}}
      */
@@ -80,7 +80,7 @@ export default function FpJsFormValidatorBundleFormConstraintUniqueEntity() {
         var value;
         var result = {};
         for (var i = 0; i < fields.length; i++) {
-            value = FpJsFormValidator.getElementValue(element.children[this.fields[i]]);
+            value = SvarohJsFormValidator.getElementValue(element.children[this.fields[i]]);
             value = value ? value : '';
             result[fields[i]] = value;
         }
@@ -89,8 +89,8 @@ export default function FpJsFormValidatorBundleFormConstraintUniqueEntity() {
     };
 
     /**
-     * @param {FpJsFormElement} element
-     * @return {FpJsFormElement}
+     * @param {SvarohJsFormElement} element
+     * @return {SvarohJsFormElement}
      */
     this.getErrorPathElement = function(element) {
         var errorPath = this.fields[0];
@@ -102,4 +102,4 @@ export default function FpJsFormValidatorBundleFormConstraintUniqueEntity() {
     }
 }
 
-window.FpJsFormValidatorBundleFormConstraintUniqueEntity = FpJsFormValidatorBundleFormConstraintUniqueEntity;
+window.SvarohJsFormValidatorBundleFormConstraintUniqueEntity = SvarohJsFormValidatorBundleFormConstraintUniqueEntity;

@@ -1,9 +1,9 @@
-import { FpJsFormElement } from '../FpJsFormValidator';
+import { SvarohJsFormElement } from '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsCallback from './Callback';
 
 const constraintsCallback = new SymfonyComponentValidatorConstraintsCallback();
 
-const elementWithoutCallback = new FpJsFormElement();
+const elementWithoutCallback = new SvarohJsFormElement();
 test('Throw error when SymfonyComponentValidatorConstraintsCallback.collbac is not set', () => {
     expect(() => constraintsCallback.validate(null, elementWithoutCallback)).toThrow();
 });
@@ -12,7 +12,7 @@ test('Throw error when SymfonyComponentValidatorConstraintsCallback.collbac is n
 const mockCallback = jest.fn();
 constraintsCallback.callback = 'test';
 
-const element = new FpJsFormElement();
+const element = new SvarohJsFormElement();
 element.callbacks = {
     'test': mockCallback
 };

@@ -1,8 +1,8 @@
 <?php
 
-namespace Fp\JsFormValidatorBundle\Twig\Extension;
+namespace Svaroh\JsFormValidatorBundle\Twig\Extension;
 
-use Fp\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
+use Svaroh\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
 use Symfony\Component\Form\FormView;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -10,7 +10,7 @@ use Twig\TwigFunction;
 /**
  * Class JsFormValidatorTwigExtension
  *
- * @package Fp\JsFormValidatorBundle\Twig\Extension
+ * @package Svaroh\JsFormValidatorBundle\Twig\Extension
  */
 class JsFormValidatorTwigExtension extends AbstractExtension
 {
@@ -86,6 +86,6 @@ class JsFormValidatorTwigExtension extends AbstractExtension
      */
     public function getName()
     {
-        return 'fp_js_form_validator';
+        return 'svaroh_js_form_validator';
     }
 }

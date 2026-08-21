@@ -1,13 +1,13 @@
 <?php
 
-namespace Fp\JsFormValidatorBundle\Model;
+namespace Svaroh\JsFormValidatorBundle\Model;
 
 /**
  * This is the main model that describes each of the form elements
  *
  * Class JsFormElement
  *
- * @package Fp\JsFormValidatorBundle\Model
+ * @package Svaroh\JsFormValidatorBundle\Model
  */
 class JsConfig extends JsModelAbstract
 {

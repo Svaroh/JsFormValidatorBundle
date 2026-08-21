@@ -1,6 +1,6 @@
 <?php
 
-namespace Fp\JsFormValidatorBundle\Controller;
+namespace Svaroh\JsFormValidatorBundle\Controller;
 
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -11,7 +11,7 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
  * These actions call from the client side to check some validations on the server side
  * Class AjaxController
  *
- * @package Fp\JsFormValidatorBundle\Controller
+ * @package Svaroh\JsFormValidatorBundle\Controller
  */
 class AjaxController
 {

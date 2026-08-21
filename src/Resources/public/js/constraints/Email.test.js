@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsEmail from './Email';
 
 const constraintsEmail = new SymfonyComponentValidatorConstraintsEmail();

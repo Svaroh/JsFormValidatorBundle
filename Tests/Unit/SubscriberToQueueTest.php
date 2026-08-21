@@ -1,9 +1,9 @@
 <?php
 
-namespace Fp\JsFormValidatorBundle\Tests\Unit;
+namespace Svaroh\JsFormValidatorBundle\Tests\Unit;
 
-use Fp\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
-use Fp\JsFormValidatorBundle\Form\Subscriber\SubscriberToQueue;
+use Svaroh\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
+use Svaroh\JsFormValidatorBundle\Form\Subscriber\SubscriberToQueue;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\FormEvent;

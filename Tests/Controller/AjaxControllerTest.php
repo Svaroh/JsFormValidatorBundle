@@ -1,10 +1,10 @@
 <?php
 
-namespace Fp\JsFormValidatorBundle\Tests\Controller;
+namespace Svaroh\JsFormValidatorBundle\Tests\Controller;
 
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectRepository;
-use Fp\JsFormValidatorBundle\Controller\AjaxController;
+use Svaroh\JsFormValidatorBundle\Controller\AjaxController;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -12,7 +12,7 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 /**
  * Class AjaxControllerTest
  *
- * @package Fp\JsFormValidatorBundle\Controller
+ * @package Svaroh\JsFormValidatorBundle\Controller
  */
 class AjaxControllerTest extends TestCase
 {
@@ -22,7 +22,7 @@ class AjaxControllerTest extends TestCase
     public function testCheckUniqueEntityAction()
     {
         $data   = array(
-            'entityName'       => 'Fp\JsFormValidatorBundle\Tests\TestBundles\DefaultTestBundle\Entity\BasicConstraintsEntity',
+            'entityName'       => 'Svaroh\JsFormValidatorBundle\Tests\TestBundles\DefaultTestBundle\Entity\BasicConstraintsEntity',
             'data'             => array(),
             'ignoreNull'       => '1',
             'repositoryMethod' => 'findBy'

@@ -5,7 +5,7 @@ export default function SymfonyComponentFormExtensionCoreDataTransformerValueToD
     /**
      *
      * @param {{}} value
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      */
     this.reverseTransform = function(value, element) {
         var initialValue = undefined;
@@ -21,7 +21,7 @@ export default function SymfonyComponentFormExtensionCoreDataTransformerValueToD
                 break;
             }
         }
-        FpJsFormValidator.customize(child.domNode, 'showErrors', {
+        SvarohJsFormValidator.customize(child.domNode, 'showErrors', {
             errors: errors,
             sourceId: 'value-to-duplicates-' + child.id
         });

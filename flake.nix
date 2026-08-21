@@ -1,5 +1,5 @@
 {
-  description = "Development shell for FpJsFormValidatorBundle";
+  description = "Development shell for SvarohJsFormValidatorBundle";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";

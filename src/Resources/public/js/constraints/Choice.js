@@ -30,7 +30,7 @@ export default function SymfonyComponentValidatorConstraintsChoice() {
             if (invalidCnt) {
                 errors.push(this.multipleMessage.replace(
                     '{{ value }}',
-                    FpJsBaseConstraint.formatValue(invalidList[0])
+                    SvarohJsBaseConstraint.formatValue(invalidList[0])
                 ));
             }
             if (!isNaN(this.min) && value.length < this.min) {
@@ -43,7 +43,7 @@ export default function SymfonyComponentValidatorConstraintsChoice() {
             while (invalidCnt--) {
                 errors.push(this.message.replace(
                     '{{ value }}',
-                    FpJsBaseConstraint.formatValue(invalidList[invalidCnt])
+                    SvarohJsBaseConstraint.formatValue(invalidList[invalidCnt])
                 ));
             }
         }
@@ -55,14 +55,14 @@ export default function SymfonyComponentValidatorConstraintsChoice() {
         this.min = parseInt(this.min);
         this.max = parseInt(this.max);
 
-        this.minMessage = FpJsBaseConstraint.prepareMessage(
+        this.minMessage = SvarohJsBaseConstraint.prepareMessage(
             this.minMessage,
-            {'{{ limit }}': FpJsBaseConstraint.formatValue(this.min)},
+            {'{{ limit }}': SvarohJsBaseConstraint.formatValue(this.min)},
             this.min
         );
-        this.maxMessage = FpJsBaseConstraint.prepareMessage(
+        this.maxMessage = SvarohJsBaseConstraint.prepareMessage(
             this.maxMessage,
-            {'{{ limit }}': FpJsBaseConstraint.formatValue(this.max)},
+            {'{{ limit }}': SvarohJsBaseConstraint.formatValue(this.max)},
             this.max
         );
     };
@@ -78,13 +78,13 @@ export default function SymfonyComponentValidatorConstraintsChoice() {
     };
 
     /**
-     * @param {FpJsFormElement} element
+     * @param {SvarohJsFormElement} element
      * @return {Array}
      */
     this.getChoicesList = function (element) {
         var choices = null;
         if (this.callback) {
-            var callback = FpJsFormValidator.getRealCallback(element, this.callback);
+            var callback = SvarohJsFormValidator.getRealCallback(element, this.callback);
             if (null !== callback) {
                 choices = callback.apply(element.domNode);
             } else {

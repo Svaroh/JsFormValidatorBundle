@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsLength from './Length';
 
 const constraintsLength = new SymfonyComponentValidatorConstraintsLength();

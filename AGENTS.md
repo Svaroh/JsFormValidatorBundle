@@ -1,15 +1,23 @@
 # Agent Notes
 
-Repository: `formapro/JsFormValidatorBundle`
-Local path: `/Volumes/SRC/JsFormValidatorBundle`
+Repository: `Svaroh/JsFormValidatorBundle`
+Upstream 1.x repository: `formapro/JsFormValidatorBundle`
+Local path: `/Volumes/SRC/svaroh/JsFormValidatorBundle`
 
 ## Current Repository State
 
-- PR #173 revived the project and was merged into `formapro/master`.
-- PR #174 restored GitHub Actions CI and was merged into `formapro/master`.
-- PR #175 restored selected old PR fixes and was merged into `formapro/master`.
-- Replacement PRs #176, #177, and #178 were merged into `formapro/master`.
-- `1.7.0-beta1` was published from `formapro/master`.
+- This repository is a new home for the bundle. `formapro/JsFormValidatorBundle`
+  keeps the `fp/jsformvalidator-bundle` Composer package.
+- `svaroh/jsformvalidator-bundle` is a new package versioned from `1.0`; it does
+  not continue the `fp/jsformvalidator-bundle` version numbers.
+- The move renames the vendor namespace, bundle class, DI alias, JavaScript
+  globals, and Composer package from `Fp`/`fp` to `Svaroh`/`svaroh`.
+- History that predates the move (all in `formapro/JsFormValidatorBundle`):
+  - PR #173 revived the project and was merged into `formapro/master`.
+  - PR #174 restored GitHub Actions CI and was merged into `formapro/master`.
+  - PR #175 restored selected old PR fixes and was merged into `formapro/master`.
+  - Replacement PRs #176, #177, and #178 were merged into `formapro/master`.
+  - `1.7.0-beta1` and `1.8.0` were published from `formapro/master`.
 
 ## CI
 

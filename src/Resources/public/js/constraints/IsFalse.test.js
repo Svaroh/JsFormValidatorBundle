@@ -1,4 +1,4 @@
-import '../FpJsFormValidator';
+import '../SvarohJsFormValidator';
 import SymfonyComponentValidatorConstraintsIsFalse from './IsFalse';
 
 const constraintsIsFalse = new SymfonyComponentValidatorConstraintsIsFalse();
