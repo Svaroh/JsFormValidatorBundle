@@ -40,3 +40,15 @@ test.each([
         expect(constraintsRange.validate(value)).toStrictEqual(expected);
     },
 );
+
+test('SymfonyComponentValidatorConstraintsRange.onCreate keeps decimal bounds', () => {
+    const constraintsRange = createConstraint();
+    constraintsRange.min = 1.5;
+    constraintsRange.max = 1000.5;
+    constraintsRange.onCreate();
+
+    expect(constraintsRange.min).toBe(1.5);
+    expect(constraintsRange.max).toBe(1000.5);
+    expect(constraintsRange.validate(1.2)).toStrictEqual(['min error']);
+    expect(constraintsRange.validate(2)).toStrictEqual([]);
+});

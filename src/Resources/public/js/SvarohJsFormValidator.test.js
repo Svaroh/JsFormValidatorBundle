@@ -393,6 +393,39 @@ describe('SvarohJsFormValidator runtime helpers', () => {
         expect(window.SvarohJsFormValidator.checkValidationGroups(['Other'], fieldConstraint)).toBe(false);
     });
 
+    test('reports a value it cannot reverse transform with the invalid message', () => {
+        const element = new window.SvarohJsFormElement();
+        element.id = 'profile_percent';
+        element.invalidMessage = 'The value {{ value }} is not a number.';
+        element.domNode = document.createElement('input');
+        element.domNode.value = 'abc';
+        element.transformers = [{
+            reverseTransform: () => {
+                throw new Error('The number contains unrecognized characters: "abc".');
+            },
+        }];
+        const constraint = {
+            groups: ['Default'],
+            validate: jest.fn(() => ['Field error.']),
+        };
+        element.data = {
+            form: {
+                groups: ['Default'],
+                constraints: [constraint],
+                getters: {},
+            },
+        };
+
+        const errors = window.SvarohJsFormValidator.validateElement(element);
+
+        expect(errors.map((error) => error.message)).toEqual(['The value "abc" is not a number.']);
+        expect(constraint.validate).not.toHaveBeenCalled();
+
+        element.invalidMessage = '';
+        expect(window.SvarohJsFormValidator.validateElement(element)[0].message)
+            .toBe('The number contains unrecognized characters: "abc".');
+    });
+
     test('checks embedded validity rules and valid constraints', () => {
         const validConstraint = new window.SymfonyComponentValidatorConstraintsValid();
         const element = new window.SvarohJsFormElement();

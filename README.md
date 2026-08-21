@@ -209,6 +209,7 @@ If your form rendering is customized, start with
 11. [onValidate callback](src/Resources/doc/3_11.md)
 12. [Run validation on custom event](src/Resources/doc/3_12.md)
 13. [Collections validation](src/Resources/doc/3_13.md)
+14. [Localized numbers](src/Resources/doc/3_14.md)
 
 ## Development
 

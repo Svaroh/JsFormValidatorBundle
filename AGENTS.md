@@ -41,12 +41,12 @@ Local path: `/Volumes/SRC/svaroh/JsFormValidatorBundle`
 
 Last verified in the Nix shell on PHP 8.5.6 / Node 24.16.0:
 
-- `composer test`: 33 tests, 104 assertions.
+- `composer test`: 35 tests, 130 assertions.
 - `composer phpstan`: no errors.
 - `composer coverage`: PHP line coverage ~98%, threshold `80%`.
-- `npm run test:unit`: Jest 266 tests.
-- `npm run test:coverage`: JavaScript line coverage ~87%, threshold `80%`.
-- `npm test`: the above plus the Cypress e2e suite, 17 tests.
+- `npm run test:unit`: Jest 308 tests.
+- `npm run test:coverage`: JavaScript line coverage ~89%, threshold `80%`.
+- `npm test`: the above plus the Cypress e2e suite, 22 tests.
 
 ## Nix Development Environment
 

@@ -561,7 +561,15 @@ var SvarohJsFormValidator = new function () {
      */
     this.validateElement = function (element) {
         var errors = [];
-        var value = this.getElementValue(element);
+        var value;
+
+        try {
+            value = this.getElementValue(element);
+        } catch (error) {
+            // Symfony reports a value it cannot reverse transform with the
+            // "invalid_message" of the element and skips its constraints
+            return [new SvarohJsFormError(this.getTransformationFailureMessage(element, error))];
+        }
 
         for (var type in element.data) {
             if ('entity' == type && element.parent && !this.shouldValidEmbedded(element)) {
@@ -597,6 +605,21 @@ var SvarohJsFormValidator = new function () {
             }
         }
         return errors;
+    };
+
+    /**
+     * @param {SvarohJsFormElement} element
+     * @param {Error} error
+     *
+     * @return {String}
+     */
+    this.getTransformationFailureMessage = function (element, error) {
+        var message = element.invalidMessage || (error && error.message) || 'This value is not valid.';
+
+        return String(message).replace(
+            '{{ value }}',
+            SvarohJsBaseConstraint.formatValue(this.getInputValue(element))
+        );
     };
 
     this.shouldValidEmbedded = function (element) {

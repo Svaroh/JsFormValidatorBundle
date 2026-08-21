@@ -54,8 +54,8 @@ export default function SymfonyComponentValidatorConstraintsRange() {
     };
 
     this.onCreate = function () {
-        this.min = parseInt(this.min);
-        this.max = parseInt(this.max);
+        this.min = parseFloat(this.min);
+        this.max = parseFloat(this.max);
     }
 }
 

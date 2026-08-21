@@ -12,6 +12,10 @@ use Symfony\Component\Form\DataTransformerInterface;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
+use Symfony\Component\Form\Extension\Core\Type\MoneyType;
+use Symfony\Component\Form\Extension\Core\Type\NumberType;
+use Symfony\Component\Form\Extension\Core\Type\PercentType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\Forms;
@@ -349,6 +353,97 @@ class JsFormValidatorFactoryTest extends TestCase
                 )
             )
         );
+    }
+
+    public function testLocalizedNumberTransformersExposeTheLocaleConventions()
+    {
+        if (!extension_loaded('intl')) {
+            $this->markTestSkipped('The intl extension is required to read the locale conventions.');
+        }
+
+        $default = \Locale::getDefault();
+        \Locale::setDefault('it');
+
+        try {
+            $factory = $this->createFactory();
+            $formFactory = $this->createFormFactory($factory);
+            $form = $formFactory
+                ->createNamedBuilder('invoice', FormType::class)
+                ->add('amount', NumberType::class)
+                ->add('quantity', IntegerType::class)
+                ->add('items', IntegerType::class, array('grouping' => true))
+                ->add('price', MoneyType::class, array('divisor' => 100))
+                ->add('discount', PercentType::class, array('scale' => 2))
+                ->getForm()
+            ;
+
+            $model = $factory->createJsModel($form);
+        } finally {
+            \Locale::setDefault($default);
+        }
+
+        $amount = $model->children['amount']->transformers[0];
+        $this->assertSame(
+            'Symfony\Component\Form\Extension\Core\DataTransformer\NumberToLocalizedStringTransformer',
+            $amount['name']
+        );
+        $this->assertSame(',', $amount['decimalSeparator']);
+        $this->assertSame('.', $amount['groupingSeparator']);
+        $this->assertFalse($amount['grouping']);
+        $this->assertNull($amount['scale']);
+        $this->assertSame(\NumberFormatter::ROUND_HALFUP, $amount['roundingMode']);
+
+        // An integer field without grouping is rendered with the "en" locale
+        $quantity = $model->children['quantity']->transformers[0];
+        $this->assertSame(
+            'Symfony\Component\Form\Extension\Core\DataTransformer\IntegerToLocalizedStringTransformer',
+            $quantity['name']
+        );
+        $this->assertSame('.', $quantity['decimalSeparator']);
+        $this->assertSame(0, $quantity['scale']);
+        $this->assertSame(\NumberFormatter::ROUND_DOWN, $quantity['roundingMode']);
+
+        $items = $model->children['items']->transformers[0];
+        $this->assertSame(',', $items['decimalSeparator']);
+        $this->assertSame('.', $items['groupingSeparator']);
+        $this->assertTrue($items['grouping']);
+
+        $price = $model->children['price']->transformers[0];
+        $this->assertSame(
+            'Symfony\Component\Form\Extension\Core\DataTransformer\MoneyToLocalizedStringTransformer',
+            $price['name']
+        );
+        $this->assertSame(',', $price['decimalSeparator']);
+        $this->assertSame(2, $price['scale']);
+        $this->assertSame(100, $price['divisor']);
+        $this->assertSame('float', $price['input']);
+
+        $discount = $model->children['discount']->transformers[0];
+        $this->assertSame(
+            'Symfony\Component\Form\Extension\Core\DataTransformer\PercentToLocalizedStringTransformer',
+            $discount['name']
+        );
+        $this->assertSame(',', $discount['decimalSeparator']);
+        $this->assertSame('.', $discount['groupingSeparator']);
+        $this->assertTrue($discount['grouping']);
+        $this->assertSame('fractional', $discount['type']);
+        $this->assertSame(2, $discount['scale']);
+    }
+
+    public function testTransformersOfOtherTypesAreNotGivenNumberParams()
+    {
+        $factory = new TestableJsFormValidatorFactory(
+            Validation::createValidator(),
+            new IdentityTranslator(),
+            $this->createStub(UrlGeneratorInterface::class),
+            array('js_validation' => true),
+            'validators'
+        );
+
+        $parsed = $factory->exposedParseTransformers(array(new TransformerFixture()));
+
+        $this->assertArrayNotHasKey('decimalSeparator', $parsed[0]);
+        $this->assertArrayNotHasKey('groupingSeparator', $parsed[0]);
     }
 
 }

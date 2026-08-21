@@ -7,6 +7,8 @@ use Svaroh\JsFormValidatorBundle\Model\JsConfig;
 use Svaroh\JsFormValidatorBundle\Model\JsFormElement;
 use Symfony\Component\Form\ChoiceList\ChoiceListInterface;
 use Symfony\Component\Form\DataTransformerInterface;
+use Symfony\Component\Form\Extension\Core\DataTransformer\NumberToLocalizedStringTransformer;
+use Symfony\Component\Form\Extension\Core\DataTransformer\PercentToLocalizedStringTransformer;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\FormInterface;
@@ -518,11 +520,73 @@ class JsFormValidatorFactory
                 $item[$prop->getName()] = $this->getTransformerParam($trans, $prop->getName());
             }
 
+            $item = array_merge($item, $this->parseLocalizedNumberParams($trans));
             $item['name'] = get_class($trans);
 
             $result[] = $item;
         }
         return $result;
+    }
+
+    /**
+     * The number, integer, money and percent types render their value through
+     * the ICU number formatter, so it follows the conventions of the current
+     * locale (e.g. "1.234,5" for "it"). The formatting rules are exported to
+     * let JavaScript reverse them instead of duplicating the locale data.
+     *
+     * @param DataTransformerInterface $transformer
+     *
+     * @return array
+     */
+    protected function parseLocalizedNumberParams(DataTransformerInterface $transformer)
+    {
+        if ($transformer instanceof NumberToLocalizedStringTransformer) {
+            $declaringClass = NumberToLocalizedStringTransformer::class;
+        } elseif ($transformer instanceof PercentToLocalizedStringTransformer) {
+            $declaringClass = PercentToLocalizedStringTransformer::class;
+        } else {
+            return array();
+        }
+
+        try {
+            $formatter = (new \ReflectionMethod($transformer, 'getNumberFormatter'))->invoke($transformer);
+
+            $result = array(
+                'decimalSeparator'  => $formatter->getSymbol(\NumberFormatter::DECIMAL_SEPARATOR_SYMBOL),
+                'groupingSeparator' => $formatter->getSymbol(\NumberFormatter::GROUPING_SEPARATOR_SYMBOL),
+                'grouping'          => (bool)$formatter->getAttribute(\NumberFormatter::GROUPING_USED),
+            );
+        } catch (\Throwable $e) {
+            // Without a usable intl formatter the JavaScript defaults are used
+            return array();
+        }
+
+        // Both properties may be declared private in a parent class, where
+        // ReflectionClass::getProperties() does not reach them
+        $result['scale']        = $this->readTransformerProperty($transformer, $declaringClass, 'scale');
+        $result['roundingMode'] = $this->readTransformerProperty($transformer, $declaringClass, 'roundingMode');
+
+        return $result;
+    }
+
+    /**
+     * Reads a property declared by the given class from a transformer instance
+     *
+     * @param DataTransformerInterface $transformer
+     * @param string                   $declaringClass
+     * @param string                   $paramName
+     *
+     * @return mixed
+     */
+    protected function readTransformerProperty(DataTransformerInterface $transformer, $declaringClass, $paramName)
+    {
+        try {
+            $property = new \ReflectionProperty($declaringClass, $paramName);
+        } catch (\ReflectionException $e) {
+            return null;
+        }
+
+        return $property->isInitialized($transformer) ? $property->getValue($transformer) : null;
     }
 
     /**
