@@ -5,6 +5,7 @@ namespace Svaroh\JsFormValidatorBundle\Tests\Controller;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectRepository;
 use Svaroh\JsFormValidatorBundle\Controller\AjaxController;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -22,7 +23,7 @@ class AjaxControllerTest extends TestCase
     public function testCheckUniqueEntityAction()
     {
         $data   = array(
-            'entityName'       => 'Svaroh\JsFormValidatorBundle\Tests\TestBundles\DefaultTestBundle\Entity\BasicConstraintsEntity',
+            'entityName'       => InMemoryEntity::class,
             'data'             => array(),
             'ignoreNull'       => '1',
             'repositoryMethod' => 'findBy'
@@ -90,6 +91,44 @@ class AjaxControllerTest extends TestCase
         $controller = new AjaxController($this->createRegistry($repository));
 
         $controller->checkUniqueEntityAction(new Request(array(), array()));
+    }
+
+    public static function provideMissingLookupField()
+    {
+        return array(
+            'no entity name' => array(array('data' => array(), 'repositoryMethod' => 'findBy')),
+            'empty entity name' => array(array('data' => array(), 'entityName' => '', 'repositoryMethod' => 'findBy')),
+            'no repository method' => array(array('data' => array(), 'entityName' => InMemoryEntity::class)),
+            'non string repository method' => array(array(
+                'data' => array(),
+                'entityName' => InMemoryEntity::class,
+                'repositoryMethod' => array('findBy'),
+            )),
+        );
+    }
+
+    #[DataProvider('provideMissingLookupField')]
+    public function testUniqueEntityLookupFieldsAreRequired(array $data)
+    {
+        $this->expectException(BadRequestHttpException::class);
+
+        $controller = new AjaxController($this->createRegistry(new InMemoryRepository()));
+
+        $controller->checkUniqueEntityAction(new Request(array(), $data));
+    }
+
+    public function testUnknownRepositoryMethodIsRejected()
+    {
+        $this->expectException(BadRequestHttpException::class);
+
+        $controller = new AjaxController($this->createRegistry(new InMemoryRepository()));
+
+        $controller->checkUniqueEntityAction(new Request(array(), array(
+            'entityName'       => InMemoryEntity::class,
+            'repositoryMethod' => 'dropDatabase',
+            'ignoreNull'       => '0',
+            'data'             => array('email' => 'test_email'),
+        )));
     }
 
     private function createRegistry(ObjectRepository $repository)

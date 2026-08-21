@@ -46,6 +46,12 @@ class AjaxController
             throw new BadRequestHttpException('The "data" request field is required.');
         }
 
+        foreach (array('entityName', 'repositoryMethod') as $field) {
+            if (!isset($data[$field]) || !is_string($data[$field]) || '' === $data[$field]) {
+                throw new BadRequestHttpException(sprintf('The "%s" request field is required.', $field));
+            }
+        }
+
         $values = $data['data'];
         $ignoreNull = !empty($data['ignoreNull']);
 
@@ -57,10 +63,16 @@ class AjaxController
             }
         }
 
-        $entity = $this->doctrine
-            ->getRepository($data['entityName'])
-            ->{$data['repositoryMethod']}($values)
-        ;
+        $repository = $this->doctrine->getRepository($data['entityName']);
+        if (!is_callable(array($repository, $data['repositoryMethod']))) {
+            throw new BadRequestHttpException(sprintf(
+                'The "%s" repository method is not callable on "%s".',
+                $data['repositoryMethod'],
+                $data['entityName']
+            ));
+        }
+
+        $entity = $repository->{$data['repositoryMethod']}($values);
 
         return new JsonResponse(empty($entity));
     }

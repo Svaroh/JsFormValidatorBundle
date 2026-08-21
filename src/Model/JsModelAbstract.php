@@ -5,7 +5,7 @@ namespace Svaroh\JsFormValidatorBundle\Model;
 /**
  * All the models inherited from this class converted to a similar Javascript model by printing them as a string
  *
- * Class PhpToJsModel
+ * Class JsModelAbstract
  *
  * @package Svaroh\JsFormValidatorBundle\Model
  */
@@ -51,7 +51,7 @@ abstract class JsModelAbstract
             $jsObject = array();
             $properties = is_object($value) ? get_object_vars($value) : $value;
             foreach ($properties as $paramName => $paramValue) {
-                $paramName = addcslashes($paramName, '\'\\');
+                $paramName = self::escapeJsString((string) $paramName);
                 $jsObject[] = "'$paramName':" . self::phpValueToJs($paramValue);
             }
 
@@ -68,9 +68,7 @@ abstract class JsModelAbstract
         }
         // For string
         elseif (is_string($value)) {
-            $value = addcslashes($value, '\'\\');
-
-            return "'$value'";
+            return "'" . self::escapeJsString($value) . "'";
         }
         // For boolean
         elseif (is_bool($value)) {
@@ -88,6 +86,38 @@ abstract class JsModelAbstract
         else {
             return 'undefined';
         }
+    }
+
+    /**
+     * Escape a string so it is safe inside a single quoted JavaScript literal
+     * printed into an inline <script> block
+     *
+     * @param string $value
+     *
+     * @return string
+     */
+    protected static function escapeJsString($value)
+    {
+        $value = addcslashes($value, '\'\\');
+
+        return strtr(
+            $value,
+            array(
+                "\n" => '\n',
+                "\r" => '\r',
+                "\t" => '\t',
+                "\v" => '\x0B',
+                "\f" => '\f',
+                "\0" => '\x00',
+                // Keep the generated code inside its own <script> block
+                '<' => '\u003C',
+                '>' => '\u003E',
+                '&' => '\u0026',
+                // Valid in JSON, but line terminators in JavaScript source
+                "\xE2\x80\xA8" => '\u2028',
+                "\xE2\x80\xA9" => '\u2029',
+            )
+        );
     }
 
     /**
