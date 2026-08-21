@@ -1,6 +1,6 @@
-// This project uses "Yarn" package manager for managing JavaScript dependencies along
-// with "Webpack Encore" library that helps working with the CSS and JavaScript files
-// that are stored in the "assets/" directory.
+// This fixture application uses npm together with "Webpack Encore" to build the
+// JavaScript files stored in the "assets/" directory and the bundle assets that
+// "assets:install" copies into "public/bundles/".
 //
 // Read https://symfony.com/doc/current/frontend.html to learn more about how
 // to manage CSS and JavaScript files in Symfony applications.

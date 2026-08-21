@@ -77,15 +77,4 @@ class JsFormValidatorTwigExtension extends AbstractExtension
 
         return $jsModels;
     }
-
-    /**
-     * Returns the name of the extension.
-     *
-     * @return string The extension name
-     * @codeCoverageIgnore
-     */
-    public function getName()
-    {
-        return 'svaroh_js_form_validator';
-    }
 }
