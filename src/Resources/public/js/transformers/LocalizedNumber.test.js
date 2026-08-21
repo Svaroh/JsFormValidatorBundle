@@ -190,3 +190,139 @@ describe('Localized number transformers', () => {
             .toBe(PercentToLocalizedString);
     });
 });
+
+describe('Conventions that are not those of a Latin locale', () => {
+    // Every expectation was taken from a run of the real Symfony transformers
+    const SWEDISH = {
+        decimalSeparator: ',',
+        groupingSeparator: '\u00a0',
+        minusSign: '\u2212',
+        exponentSymbol: '\u00d710^',
+        groupingSize: 3,
+        secondaryGroupingSize: 0,
+    };
+    const ARABIC = {
+        decimalSeparator: '\u066b',
+        groupingSeparator: '\u066c',
+        zeroDigit: '\u0660',
+        minusSign: '\u061c-',
+        exponentSymbol: '\u0627\u0633',
+        groupingSize: 3,
+        secondaryGroupingSize: 0,
+    };
+    const HINDI = {
+        decimalSeparator: '.',
+        groupingSeparator: ',',
+        groupingSize: 3,
+        secondaryGroupingSize: 2,
+    };
+    // Chakma writes its digits outside the basic multilingual plane
+    const CHAKMA = { decimalSeparator: '.', groupingSeparator: ',', zeroDigit: '\u{11136}' };
+
+    test('reads the minus sign of the locale', () => {
+        const transformer = createNumber(SWEDISH);
+
+        expect(transformer.reverseTransform('\u221212,5')).toBe(-12.5);
+        expect(transformer.reverseTransform('\u22121\u00a0234,5')).toBe(-1234.5);
+    });
+
+    test.each(['\u2212', '\u2012', '\u2013', '\u207b', '\u2796', '\ufe63', '\uff0d'])(
+        'reads %s as a minus sign in any locale',
+        (sign) => {
+            expect(createNumber(ENGLISH).reverseTransform(sign + '12.5')).toBe(-12.5);
+        },
+    );
+
+    test('reads the digits of the locale', () => {
+        expect(createNumber(ARABIC).reverseTransform('\u0661\u0662\u066b\u0665')).toBe(12.5);
+        expect(createNumber(ARABIC).reverseTransform('\u061c-\u0661\u0662')).toBe(-12);
+        expect(createNumber(CHAKMA).reverseTransform('\u{11137}\u{11138}.\u{1113b}')).toBe(12.5);
+    });
+
+    test('reads the exponent symbol of the locale', () => {
+        expect(createNumber(SWEDISH).reverseTransform('1,2\u00d710^3')).toBe(1200);
+        expect(createNumber(SWEDISH, { scale: 3 }).reverseTransform('1,2\u00d710^\u22123')).toBe(0.001);
+        // "e" is not the symbol of that locale
+        expect(() => createNumber(SWEDISH).reverseTransform('1,2e3')).toThrow('unrecognized characters');
+    });
+
+    test('reads the grouping of the Indian subcontinent', () => {
+        const transformer = createNumber(HINDI);
+
+        expect(transformer.reverseTransform('12,34,567.89')).toBe(1234567.89);
+        expect(transformer.reverseTransform('1,23,45,678')).toBe(12345678);
+        expect(transformer.reverseTransform('1,234')).toBe(1234);
+        expect(() => transformer.reverseTransform('1,2345')).toThrow('unrecognized characters');
+    });
+
+    test('keeps rejecting the grouping of another locale', () => {
+        expect(() => createNumber(ENGLISH).reverseTransform('12,34,567.89'))
+            .toThrow('unrecognized characters');
+    });
+});
+
+describe('The bounds and the whitespace of the Symfony transformers', () => {
+    test.each([
+        ['1e300'],
+        ['99999999999999999999'],
+        ['9223372036854775807'],
+    ])('rejects %s, which reaches the PHP integer bounds', (value) => {
+        expect(() => createNumber(ENGLISH).reverseTransform(value))
+            .toThrow('I don\'t have a clear idea what infinity looks like.');
+        expect(() => createInteger(ENGLISH).reverseTransform(value))
+            .toThrow('I don\'t have a clear idea what infinity looks like.');
+        expect(() => createMoney(ENGLISH).reverseTransform(value))
+            .toThrow('I don\'t have a clear idea what infinity looks like.');
+    });
+
+    test('keeps a value that stays below the bounds', () => {
+        expect(createNumber(ENGLISH, { grouping: false }).reverseTransform('1e18')).toBe(1e18);
+    });
+
+    test('refuses a money amount the divisor pushes out of the integer range', () => {
+        const transformer = createMoney(ENGLISH, { input: 'integer', divisor: 1000000000000 });
+
+        expect(() => transformer.reverseTransform('99999999'))
+            .toThrow('Try setting the input to "float" instead.');
+    });
+
+    test('accepts the trailing whitespace PHP trims off the remainder', () => {
+        const transformer = createNumber(ENGLISH);
+
+        expect(transformer.reverseTransform('12.5 ')).toBe(12.5);
+        expect(transformer.reverseTransform('12.5\t')).toBe(12.5);
+        expect(transformer.reverseTransform('12.5\u00a0')).toBe(12.5);
+    });
+
+    test('rejects the leading whitespace the formatter stops on', () => {
+        // A form that is not configured with "trim" set to false never gets one
+        expect(() => createNumber(ENGLISH).reverseTransform(' 12.5'))
+            .toThrow('unrecognized characters');
+        expect(() => createNumber(ENGLISH).reverseTransform(' '))
+            .toThrow('unrecognized characters');
+    });
+
+    test('refuses a rounding mode PHP has no arm for', () => {
+        expect(() => createNumber(ENGLISH, { scale: 2, roundingMode: 42 }).reverseTransform('1.005'))
+            .toThrow('Unsupported rounding mode "42".');
+    });
+});
+
+describe('The percent transformer follows its own Symfony quirks', () => {
+    test('reads a value without a decimal separator as an integer', () => {
+        // PercentToLocalizedStringTransformer misses the "e-" check that its
+        // number counterpart carries, so the fraction is truncated
+        expect(createPercent(ENGLISH, { type: 'integer' }).reverseTransform('1e-3')).toBe(0);
+        expect(createNumber(ENGLISH, { grouping: false }).reverseTransform('1e-3')).toBe(0.001);
+    });
+
+    test('keeps a value that carries the decimal separator', () => {
+        expect(createPercent(ENGLISH, { type: 'integer', scale: 2 }).reverseTransform('12.5')).toBe(12.5);
+    });
+
+    test('rejects "NaN" without the message of the number transformer', () => {
+        // Symfony reads it as 0 here; refusing it is deliberate
+        expect(() => createPercent(ENGLISH).reverseTransform('NaN')).toThrow('unrecognized characters');
+        expect(() => createNumber(ENGLISH).reverseTransform('NaN')).toThrow('"NaN" is not a valid number.');
+    });
+});

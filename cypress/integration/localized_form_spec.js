@@ -10,6 +10,38 @@ const fill = (id, value) => {
     cy.get('#' + id).clear().type(value).should('have.value', value);
 };
 
+context('JsFormValidatorBundle with a minus sign that is not the ASCII one', () => {
+    beforeEach(() => {
+        cy.visit('/sv/localized')
+    });
+
+    describe('test a locale whose formatter writes U+2212', () => {
+        it('test negative number', () => {
+            const fieldId = 'localized_form_amount';
+
+            // Reading the sign is what tells the range constraint from the
+            // "invalid_message" the field would show if the value were rejected
+            fill(fieldId, '\u221212,5');
+            submitForm();
+            getErrors(fieldId).should('have.length', 1);
+            cy.get('.form-error-localized-form-amount').contains('Amount must be between 1.5 and 1000.5');
+
+            fill(fieldId, '12,5');
+            submitForm();
+            getErrors(fieldId).should('have.length', 0);
+        });
+
+        it('test the grouping separator of the locale', () => {
+            const fieldId = 'localized_form_amount';
+
+            fill(fieldId, '1\u00a0234,5');
+            submitForm();
+            getErrors(fieldId).should('have.length', 1);
+            cy.get('.form-error-localized-form-amount').contains('Amount must be between 1.5 and 1000.5');
+        });
+    });
+});
+
 context('JsFormValidatorBundle with a comma as the decimal separator', () => {
     beforeEach(() => {
         cy.visit('/it/localized')

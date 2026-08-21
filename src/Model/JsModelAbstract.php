@@ -76,6 +76,15 @@ abstract class JsModelAbstract
         }
         // For numbers
         elseif (is_numeric($value)) {
+            // "NAN" and "INF" are not JavaScript literals
+            if (is_float($value) && !is_finite($value)) {
+                if (is_nan($value)) {
+                    return 'NaN';
+                }
+
+                return $value > 0 ? 'Infinity' : '-Infinity';
+            }
+
             return (string) $value;
         }
         // For null

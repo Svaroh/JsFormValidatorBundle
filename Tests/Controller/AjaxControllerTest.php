@@ -131,6 +131,65 @@ class AjaxControllerTest extends TestCase
         )));
     }
 
+    public function testMagicRepositoryMethodIsRejected()
+    {
+        $this->expectException(BadRequestHttpException::class);
+
+        $controller = new AjaxController($this->createRegistry(new MagicRepository()));
+
+        // is_callable() accepts anything a __call() answers, method_exists() does not
+        $controller->checkUniqueEntityAction(new Request(array(), array(
+            'entityName'       => InMemoryEntity::class,
+            'repositoryMethod' => 'findByAnythingAtAll',
+            'ignoreNull'       => '0',
+            'data'             => array('email' => 'test_email'),
+        )));
+    }
+
+    public static function provideUncallableRepositoryMethod()
+    {
+        return array(
+            'magic method' => array('__construct'),
+            'non public method' => array('secret'),
+            'static method' => array('shared'),
+        );
+    }
+
+    #[DataProvider('provideUncallableRepositoryMethod')]
+    public function testOnlyDeclaredPublicRepositoryMethodsAreCallable($method)
+    {
+        $this->expectException(BadRequestHttpException::class);
+
+        $controller = new AjaxController($this->createRegistry(new MagicRepository()));
+
+        $controller->checkUniqueEntityAction(new Request(array(), array(
+            'entityName'       => InMemoryEntity::class,
+            'repositoryMethod' => $method,
+            'ignoreNull'       => '0',
+            'data'             => array('email' => 'test_email'),
+        )));
+    }
+
+    public function testUnknownEntityIsRejectedWithABadRequest()
+    {
+        $registry = $this->createStub(ManagerRegistry::class);
+        $registry
+            ->method('getRepository')
+            ->willThrowException(new \InvalidArgumentException('Unknown entity.'))
+        ;
+
+        $controller = new AjaxController($registry);
+
+        $this->expectException(BadRequestHttpException::class);
+
+        $controller->checkUniqueEntityAction(new Request(array(), array(
+            'entityName'       => 'App\\Entity\\Nope',
+            'repositoryMethod' => 'findBy',
+            'ignoreNull'       => '0',
+            'data'             => array('email' => 'test_email'),
+        )));
+    }
+
     private function createRegistry(ObjectRepository $repository)
     {
         $registry = $this->createStub(ManagerRegistry::class);
@@ -183,5 +242,23 @@ class InMemoryRepository implements ObjectRepository
     public function getClassName(): string
     {
         return InMemoryEntity::class;
+    }
+}
+
+class MagicRepository extends InMemoryRepository
+{
+    public static function shared(): array
+    {
+        return array();
+    }
+
+    public function __call(string $name, array $arguments): array
+    {
+        return array();
+    }
+
+    protected function secret(): array
+    {
+        return array();
     }
 }

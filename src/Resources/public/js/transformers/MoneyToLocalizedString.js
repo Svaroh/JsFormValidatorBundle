@@ -5,7 +5,18 @@
  *
  * @constructor
  */
-import { parseLocalizedNumber, roundToScale, toInteger, toPhpPrecision, ROUND_HALFUP } from './LocalizedNumber.js';
+import {
+    assertNotNaN,
+    assertWithinIntegerRange,
+    parseLocalizedNumber,
+    readsAsInteger,
+    roundToScale,
+    toInteger,
+    toPhpPrecision,
+    PHP_INT_MAX,
+    PHP_INT_MIN,
+    ROUND_HALFUP
+} from './LocalizedNumber.js';
 
 export default function SymfonyComponentFormExtensionCoreDataTransformerMoneyToLocalizedStringTransformer() {
     this.scale = 2;
@@ -15,17 +26,38 @@ export default function SymfonyComponentFormExtensionCoreDataTransformerMoneyToL
     this.input = 'float';
     this.decimalSeparator = '.';
     this.groupingSeparator = ',';
+    this.minusSign = '-';
+    this.zeroDigit = '0';
+    this.exponentSymbol = 'E';
 
     this.reverseTransform = function (value) {
+        assertNotNaN(value);
+
         var number = parseLocalizedNumber(value, this);
         if (null === number) {
             return null;
         }
 
+        if (readsAsInteger(value, this, true)) {
+            number = toInteger(number);
+        }
+
+        assertWithinIntegerRange(number);
+
         // PHP casts the multiplication to string before it casts it back
         number = toPhpPrecision(roundToScale(number, this.scale, this.roundingMode) * (this.divisor || 1));
 
-        return 'integer' === this.input ? toInteger(number) : number;
+        if ('integer' !== this.input) {
+            return number;
+        }
+
+        if (number > PHP_INT_MAX || number < PHP_INT_MIN) {
+            throw new Error(
+                'Cannot cast "' + number + '" to an integer. Try setting the input to "float" instead.'
+            );
+        }
+
+        return toInteger(number);
     };
 }
 

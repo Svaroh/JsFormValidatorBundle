@@ -392,6 +392,11 @@ class JsFormValidatorFactoryTest extends TestCase
         $this->assertFalse($amount['grouping']);
         $this->assertNull($amount['scale']);
         $this->assertSame(\NumberFormatter::ROUND_HALFUP, $amount['roundingMode']);
+        $this->assertSame('-', $amount['minusSign']);
+        $this->assertSame('0', $amount['zeroDigit']);
+        $this->assertSame('E', $amount['exponentSymbol']);
+        $this->assertSame(3, $amount['groupingSize']);
+        $this->assertSame(0, $amount['secondaryGroupingSize']);
 
         // An integer field without grouping is rendered with the "en" locale
         $quantity = $model->children['quantity']->transformers[0];
@@ -428,6 +433,74 @@ class JsFormValidatorFactoryTest extends TestCase
         $this->assertTrue($discount['grouping']);
         $this->assertSame('fractional', $discount['type']);
         $this->assertSame(2, $discount['scale']);
+    }
+
+    public function testLocalizedNumberTransformersExposeTheSymbolsOfTheirLocale()
+    {
+        if (!extension_loaded('intl')) {
+            $this->markTestSkipped('The intl extension is required to read the locale conventions.');
+        }
+
+        $default = \Locale::getDefault();
+
+        try {
+            $factory = $this->createFactory();
+            $formFactory = $this->createFormFactory($factory);
+
+            // The minus sign of "sv" is U+2212 and its exponent is "×10^"
+            \Locale::setDefault('sv');
+            $swedish = $factory
+                ->createJsModel($formFactory->createNamedBuilder('a', FormType::class)
+                    ->add('amount', NumberType::class)
+                    ->getForm())
+                ->children['amount']->transformers[0]
+            ;
+
+            // "ar" writes the digits of its own script
+            \Locale::setDefault('ar');
+            $arabic = $factory
+                ->createJsModel($formFactory->createNamedBuilder('b', FormType::class)
+                    ->add('amount', NumberType::class)
+                    ->getForm())
+                ->children['amount']->transformers[0]
+            ;
+
+            // "hi" groups the leading digits by two
+            \Locale::setDefault('hi');
+            $hindi = $factory
+                ->createJsModel($formFactory->createNamedBuilder('c', FormType::class)
+                    ->add('amount', NumberType::class, array('grouping' => true))
+                    ->getForm())
+                ->children['amount']->transformers[0]
+            ;
+        } finally {
+            \Locale::setDefault($default);
+        }
+
+        $this->assertSame("\xE2\x88\x92", $swedish['minusSign']);
+        $this->assertNotSame('E', $swedish['exponentSymbol']);
+
+        $this->assertSame("\xD9\xA0", $arabic['zeroDigit']);
+
+        $this->assertSame(3, $hindi['groupingSize']);
+        $this->assertSame(2, $hindi['secondaryGroupingSize']);
+    }
+
+    public function testTheTrimOptionOfTheElementIsExported()
+    {
+        $factory = $this->createFactory();
+        $formFactory = $this->createFormFactory($factory);
+        $form = $formFactory
+            ->createNamedBuilder('invoice', FormType::class)
+            ->add('kept', TextType::class, array('trim' => false))
+            ->add('trimmed', TextType::class)
+            ->getForm()
+        ;
+
+        $model = $factory->createJsModel($form);
+
+        $this->assertFalse($model->children['kept']->trim);
+        $this->assertTrue($model->children['trimmed']->trim);
     }
 
     public function testTransformersOfOtherTypesAreNotGivenNumberParams()

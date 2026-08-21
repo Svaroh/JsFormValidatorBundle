@@ -5,7 +5,14 @@
  *
  * @constructor
  */
-import { parseLocalizedNumber, applyRounding, ROUND_HALFUP } from './LocalizedNumber.js';
+import {
+    applyRounding,
+    assertWithinIntegerRange,
+    parseLocalizedNumber,
+    readsAsInteger,
+    toInteger,
+    ROUND_HALFUP
+} from './LocalizedNumber.js';
 
 export default function SymfonyComponentFormExtensionCoreDataTransformerPercentToLocalizedStringTransformer() {
     this.type = 'fractional';
@@ -15,11 +22,21 @@ export default function SymfonyComponentFormExtensionCoreDataTransformerPercentT
     this.html5Format = false;
     this.decimalSeparator = '.';
     this.groupingSeparator = ',';
+    this.minusSign = '-';
+    this.zeroDigit = '0';
+    this.exponentSymbol = 'E';
 
+    // The percent transformer of Symfony carries neither the "NaN" check nor
+    // the negative exponent check of its number counterpart, so a value with no
+    // decimal separator at all is read as an integer
     this.reverseTransform = function (value) {
         var number = parseLocalizedNumber(value, this);
         if (null === number) {
             return null;
+        }
+
+        if (readsAsInteger(value, this, false)) {
+            number = toInteger(assertWithinIntegerRange(number));
         }
 
         var coefficient = Math.pow(10, this.scale);

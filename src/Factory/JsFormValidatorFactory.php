@@ -251,6 +251,7 @@ class JsFormValidatorFactory
             $conf->getOption('invalid_message'),
             $conf->getOption('invalid_message_parameters')
         );
+        $model->trim           = (bool)$conf->getOption('trim', true);
         $model->transformers   = $this->normalizeViewTransformers(
             $form,
             $this->parseTransformers($conf->getViewTransformers())
@@ -552,9 +553,18 @@ class JsFormValidatorFactory
             $formatter = (new \ReflectionMethod($transformer, 'getNumberFormatter'))->invoke($transformer);
 
             $result = array(
-                'decimalSeparator'  => $formatter->getSymbol(\NumberFormatter::DECIMAL_SEPARATOR_SYMBOL),
-                'groupingSeparator' => $formatter->getSymbol(\NumberFormatter::GROUPING_SEPARATOR_SYMBOL),
-                'grouping'          => (bool)$formatter->getAttribute(\NumberFormatter::GROUPING_USED),
+                'decimalSeparator'      => $formatter->getSymbol(\NumberFormatter::DECIMAL_SEPARATOR_SYMBOL),
+                'groupingSeparator'     => $formatter->getSymbol(\NumberFormatter::GROUPING_SEPARATOR_SYMBOL),
+                'grouping'              => (bool)$formatter->getAttribute(\NumberFormatter::GROUPING_USED),
+                // Locales such as "sv" write the minus as U+2212 and the
+                // exponent as "×10^", and "ar" writes digits of its own script
+                'minusSign'             => $formatter->getSymbol(\NumberFormatter::MINUS_SIGN_SYMBOL),
+                'zeroDigit'             => $formatter->getSymbol(\NumberFormatter::ZERO_DIGIT_SYMBOL),
+                'exponentSymbol'        => $formatter->getSymbol(\NumberFormatter::EXPONENTIAL_SYMBOL),
+                // "hi" and the other locales of the Indian subcontinent group
+                // the leading digits by two, not by three
+                'groupingSize'          => (int)$formatter->getAttribute(\NumberFormatter::GROUPING_SIZE),
+                'secondaryGroupingSize' => (int)$formatter->getAttribute(\NumberFormatter::SECONDARY_GROUPING_SIZE),
             );
         } catch (\Throwable $e) {
             // Without a usable intl formatter the JavaScript defaults are used

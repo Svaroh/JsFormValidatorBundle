@@ -393,6 +393,40 @@ describe('SvarohJsFormValidator runtime helpers', () => {
         expect(window.SvarohJsFormValidator.checkValidationGroups(['Other'], fieldConstraint)).toBe(false);
     });
 
+    test('trims the submitted value the way Symfony does', () => {
+        const element = new window.SvarohJsFormElement();
+        element.domNode = document.createElement('input');
+
+        // Symfony\Component\Form\Util\StringUtil strips the Unicode
+        // separators, controls and format characters off both ends
+        element.domNode.value = '  12.5\u00a0';
+        expect(window.SvarohJsFormValidator.getInputValue(element)).toBe('12.5');
+
+        element.domNode.value = '\u200e ab \u202c';
+        expect(window.SvarohJsFormValidator.getInputValue(element)).toBe('ab');
+
+        element.domNode.value = '   ';
+        expect(window.SvarohJsFormValidator.getInputValue(element)).toBe('');
+
+        element.domNode.value = 'a  b';
+        expect(window.SvarohJsFormValidator.getInputValue(element)).toBe('a  b');
+    });
+
+    test('keeps the value untouched when the element is not trimmed', () => {
+        const element = new window.SvarohJsFormElement();
+        element.trim = false;
+        element.domNode = document.createElement('input');
+        element.domNode.value = '  12.5  ';
+
+        expect(window.SvarohJsFormValidator.getInputValue(element)).toBe('  12.5  ');
+    });
+
+    test('leaves an element without a node without a value', () => {
+        const element = new window.SvarohJsFormElement();
+
+        expect(window.SvarohJsFormValidator.getInputValue(element)).toBeUndefined();
+    });
+
     test('reports a value it cannot reverse transform with the invalid message', () => {
         const element = new window.SvarohJsFormElement();
         element.id = 'profile_percent';

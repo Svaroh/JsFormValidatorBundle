@@ -63,8 +63,18 @@ class AjaxController
             }
         }
 
-        $repository = $this->doctrine->getRepository($data['entityName']);
-        if (!is_callable(array($repository, $data['repositoryMethod']))) {
+        try {
+            $repository = $this->doctrine->getRepository($data['entityName']);
+        } catch (\Throwable $e) {
+            throw new BadRequestHttpException(
+                sprintf('The "%s" entity is not managed by Doctrine.', $data['entityName']),
+                $e
+            );
+        }
+
+        // method_exists() ignores the methods a repository answers through
+        // __call(), which is_callable() would have accepted
+        if (!$this->isCallableRepositoryMethod($repository, $data['repositoryMethod'])) {
             throw new BadRequestHttpException(sprintf(
                 'The "%s" repository method is not callable on "%s".',
                 $data['repositoryMethod'],
@@ -75,5 +85,25 @@ class AjaxController
         $entity = $repository->{$data['repositoryMethod']}($values);
 
         return new JsonResponse(empty($entity));
+    }
+
+    /**
+     * A repository method the request may drive: declared, public, not static
+     * and not a magic method
+     *
+     * @param object $repository
+     * @param string $method
+     *
+     * @return bool
+     */
+    private function isCallableRepositoryMethod($repository, $method)
+    {
+        if (str_starts_with($method, '__') || !method_exists($repository, $method)) {
+            return false;
+        }
+
+        $reflection = new \ReflectionMethod($repository, $method);
+
+        return $reflection->isPublic() && !$reflection->isStatic();
     }
 }

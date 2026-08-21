@@ -35,6 +35,15 @@ class JsModelAbstractTest extends TestCase
         );
     }
 
+    public function testPrintsTheNonFiniteFloatsAsJavaScriptLiterals()
+    {
+        // "NAN" and "INF" are what PHP casts them to, and neither is JavaScript
+        $this->assertSame('NaN', JsModelAbstract::phpValueToJs(NAN));
+        $this->assertSame('Infinity', JsModelAbstract::phpValueToJs(INF));
+        $this->assertSame('-Infinity', JsModelAbstract::phpValueToJs(-INF));
+        $this->assertSame('12.5', JsModelAbstract::phpValueToJs(12.5));
+    }
+
     public function testConvertsArraysAndObjectsRecursively()
     {
         $value = array(

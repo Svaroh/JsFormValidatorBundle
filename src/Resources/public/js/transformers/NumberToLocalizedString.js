@@ -5,7 +5,15 @@
  *
  * @constructor
  */
-import { parseLocalizedNumber, roundToScale, ROUND_HALFUP } from './LocalizedNumber.js';
+import {
+    assertNotNaN,
+    assertWithinIntegerRange,
+    parseLocalizedNumber,
+    readsAsInteger,
+    roundToScale,
+    toInteger,
+    ROUND_HALFUP
+} from './LocalizedNumber.js';
 
 export default function SymfonyComponentFormExtensionCoreDataTransformerNumberToLocalizedStringTransformer() {
     this.scale = null;
@@ -13,11 +21,25 @@ export default function SymfonyComponentFormExtensionCoreDataTransformerNumberTo
     this.roundingMode = ROUND_HALFUP;
     this.decimalSeparator = '.';
     this.groupingSeparator = ',';
+    this.minusSign = '-';
+    this.zeroDigit = '0';
+    this.exponentSymbol = 'E';
 
     this.reverseTransform = function (value) {
-        var number = parseLocalizedNumber(value, this);
+        assertNotNaN(value);
 
-        return null === number ? null : roundToScale(number, this.scale, this.roundingMode);
+        var number = parseLocalizedNumber(value, this);
+        if (null === number) {
+            return null;
+        }
+
+        if (readsAsInteger(value, this, true)) {
+            number = toInteger(number);
+        }
+
+        assertWithinIntegerRange(number);
+
+        return roundToScale(number, this.scale, this.roundingMode);
     };
 }
 
