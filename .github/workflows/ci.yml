@@ -151,6 +151,9 @@ jobs:
       - name: Run JavaScript coverage
         run: npm run test:coverage
 
+      # Uploading needs "Code quality" enabled on the repository; while it is
+      # off the API answers 403, which must stay a warning so the report
+      # artifact below is still produced
       - name: Upload PHP coverage to GitHub
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/upload-code-coverage@v1
@@ -158,6 +161,7 @@ jobs:
           file: build/coverage/phpunit/cobertura.xml
           language: PHP
           label: code-coverage/phpunit
+          fail-on-error: false
 
       - name: Upload JavaScript coverage to GitHub
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
@@ -166,6 +170,7 @@ jobs:
           file: build/coverage/jest/cobertura-coverage.xml
           language: JavaScript
           label: code-coverage/jest
+          fail-on-error: false
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v7
