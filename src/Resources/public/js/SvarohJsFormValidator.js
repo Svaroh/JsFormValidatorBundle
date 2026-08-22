@@ -532,19 +532,28 @@ var SvarohJsFormValidator = new function () {
     this.addModel = function (model, onLoad) {
         var self = this;
         if (!model) return;
+        var register = function () {
+            var element = self.initModel(model);
+            // A model of a form that is not rendered on the current page has no
+            // element at all, keep it out of the registry instead of storing a
+            // null that every consumer of "forms" would have to guard against
+            if (element) {
+                self.forms[model.id] = element;
+            }
+
+            return element;
+        };
+
         if (onLoad !== false) {
-            this.onDocumentReady(function () {
-                self.forms[model.id] = self.initModel(model);
-            });
+            this.onDocumentReady(register);
         } else {
-            self.forms[model.id] = self.initModel(model);
+            var element = register();
             // A model rendered inline runs before js_validator_config() when
             // the template puts the configuration further down the document,
             // and the native UI has to be off before the first submit
             this.onDocumentReady(function () {
-                var form = self.forms[model.id];
-                if (form && form.domNode) {
-                    self.disableNativeValidationUi(form.domNode);
+                if (element && element.domNode) {
+                    self.disableNativeValidationUi(element.domNode);
                 }
             });
         }
@@ -563,9 +572,17 @@ var SvarohJsFormValidator = new function () {
 
     /**
      * @param {Object} model
+     *
+     * @return {SvarohJsFormElement|null}
      */
     this.initModel = function (model) {
         var element = this.createElement(model);
+        // "createElement" returns null for a model without any DOM node, the
+        // same way it skips such children, there is nothing to initialize then
+        if (!element) {
+            return null;
+        }
+
         var form = this.findFormElement(element);
         element.domNode = form;
         this.attachElement(element);
@@ -756,7 +773,7 @@ var SvarohJsFormValidator = new function () {
     /**
      * @param {Object} model
      *
-     * @return {SvarohJsFormElement}
+     * @return {SvarohJsFormElement|null}
      */
     this.createElement = function (model) {
         var element = new SvarohJsFormElement();
