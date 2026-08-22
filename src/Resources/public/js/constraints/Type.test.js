@@ -95,3 +95,149 @@ test('SymfonyComponentValidatorConstraintsType does not throw on an unknown type
 
     expect(() => constraintsType.validate('anything')).not.toThrow();
 });
+
+// Symfony's TypeValidator returns before any check when the value is null, so
+// an empty field is only ever reported by NotNull and NotBlank
+test.each([
+    ['array'],
+    ['bool'],
+    ['boolean'],
+    ['callable'],
+    ['float'],
+    ['double'],
+    ['real'],
+    ['int'],
+    ['integer'],
+    ['long'],
+    ['null'],
+    ['numeric'],
+    ['object'],
+    ['scalar'],
+    [''],
+    ['string'],
+    // The ctype_*() based types reject everything that is not a string, null
+    // included, but the validator never gets that far
+    ['alnum'],
+    ['alpha'],
+    ['cntrl'],
+    ['digit'],
+    ['graph'],
+    ['lower'],
+    ['print'],
+    ['punct'],
+    ['space'],
+    ['upper'],
+    ['xdigit'],
+])(
+    'SymfonyComponentValidatorConstraintsType accepts null for the %s type',
+    (type) => {
+        constraintsType.type = type;
+        expect(constraintsType.validate(null)).toStrictEqual([]);
+    },
+);
+
+// PHP checks the integer types with is_int(), which no string ever satisfies.
+// The value has to be turned into a number by the reverse transformer of the
+// field, not by loosening the comparison here
+test.each([
+    ['1'],
+    ['1.5'],
+    ['  1  '],
+    ['0x10'],
+    ['1e3'],
+    [' '],
+    [1.5],
+    [true],
+])(
+    'SymfonyComponentValidatorConstraintsType rejects %p for the integer type',
+    (value) => {
+        constraintsType.type = 'integer';
+        expect(constraintsType.validate(value)).toHaveLength(1);
+    },
+);
+
+// https://github.com/formapro/JsFormValidatorBundle/issues/67 - an "integer"
+// field is rendered as <input type="number">, whose value is read as a string
+describe('Type on a Symfony integer field', () => {
+    const NAMESPACE = 'Symfony\\Component\\Form\\Extension\\Core\\';
+
+    /**
+     * Builds the model the factory exports for an "integer" field carrying an
+     * "@Assert\Type(type=integer)" constraint, and validates the given input.
+     *
+     * @param {String} input
+     *
+     * @return {Array} the reported messages
+     */
+    function validateInput(input) {
+        document.body.innerHTML = '<form name="chart" id="chart">'
+            + '<input type="number" id="chart_columns" name="chart[columns]">'
+            + '</form>';
+        document.getElementById('chart_columns').value = input;
+
+        const element = window.SvarohJsFormValidator.initModel({
+            id: 'chart',
+            name: 'chart',
+            type: NAMESPACE + 'Type\\FormType',
+            invalidMessage: 'This value is not valid.',
+            trim: true,
+            bubbling: true,
+            transformers: [],
+            data: {},
+            children: {
+                columns: {
+                    id: 'chart_columns',
+                    name: 'columns',
+                    type: NAMESPACE + 'Type\\IntegerType',
+                    invalidMessage: 'Please enter an integer.',
+                    trim: true,
+                    bubbling: false,
+                    transformers: [{
+                        name: NAMESPACE + 'DataTransformer\\IntegerToLocalizedStringTransformer',
+                        scale: 0,
+                        grouping: false,
+                        roundingMode: 2,
+                        decimalSeparator: '.',
+                        groupingSeparator: ',',
+                        minusSign: '-',
+                        zeroDigit: '0',
+                        exponentSymbol: 'E',
+                        groupingSize: 3,
+                        secondaryGroupingSize: 0,
+                    }],
+                    children: {},
+                    data: {
+                        parent: {
+                            constraints: {
+                                'Symfony\\Component\\Validator\\Constraints\\Type': [{
+                                    groups: ['Default'],
+                                    message: 'This value should be of type {{ type }}.',
+                                    type: 'integer',
+                                }],
+                            },
+                            groups: ['Default'],
+                        },
+                    },
+                },
+            },
+        });
+
+        return window.SvarohJsFormValidator
+            .validateElement(element.children.columns)
+            .map((error) => error.message);
+    }
+
+    test('accepts the string the number input reports, reverse transformed to an integer', () => {
+        expect(validateInput('5')).toStrictEqual([]);
+        expect(validateInput('0')).toStrictEqual([]);
+        expect(validateInput('-3')).toStrictEqual([]);
+    });
+
+    test('leaves an empty field to NotBlank instead of reporting the type', () => {
+        expect(validateInput('')).toStrictEqual([]);
+    });
+
+    test('reports a fractional input with the invalid message of the field', () => {
+        expect(validateInput('1.5')).toStrictEqual(['Please enter an integer.']);
+    });
+});
