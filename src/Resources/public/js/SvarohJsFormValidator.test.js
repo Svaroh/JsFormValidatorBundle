@@ -1609,3 +1609,240 @@ describe('SvarohJsFormValidator repeated forms', () => {
         expect(forms[0].jsFormValidator).toBe(instances[0]);
     });
 });
+
+describe('SvarohJsFormValidator validation events', () => {
+    afterEach(() => {
+        document.body.innerHTML = '';
+        window.SvarohJsFormValidator.config = {};
+        window.SvarohJsFormValidator.ajax.queue = 0;
+        window.SvarohJsFormValidator.ajax.callbacks = [];
+        jest.restoreAllMocks();
+    });
+
+    function createForm() {
+        const form = document.createElement('form');
+        document.body.appendChild(form);
+
+        return form;
+    }
+
+    function createElement(id, domNode) {
+        const element = new window.SvarohJsFormElement();
+        element.id = id;
+        element.name = id;
+        element.domNode = domNode;
+        window.SvarohJsFormValidator.attachElement(element);
+
+        return element;
+    }
+
+    function createInput(form, id) {
+        const input = document.createElement('input');
+        input.id = id;
+        form.appendChild(input);
+
+        return input;
+    }
+
+    function addConstraint(element, validate) {
+        element.data.form = {
+            constraints: [{
+                groups: ['Default'],
+                validate,
+            }],
+            getters: {},
+            groups: ['Default'],
+        };
+    }
+
+    function record(domNode, names) {
+        const fired = [];
+        for (const name of names) {
+            domNode.addEventListener('svaroh:' + name, function (event) {
+                fired.push({ name, detail: event.detail, target: event.target });
+            });
+        }
+
+        return fired;
+    }
+
+    test('fires validating and success on the element node of a valid element', () => {
+        const form = createForm();
+        const element = createElement('user_email', createInput(form, 'user_email'));
+        const fired = record(element.domNode, ['validating', 'success', 'failure']);
+
+        expect(element.validate()).toBe(true);
+
+        expect(fired.map((item) => item.name)).toEqual(['validating', 'success']);
+        expect(fired[1].detail.element).toBe(element);
+        expect(fired[1].detail.errors).toEqual([]);
+    });
+
+    test('fires failure with the messages of every error source', () => {
+        const form = createForm();
+        const element = createElement('user_email', createInput(form, 'user_email'));
+        addConstraint(element, () => ['Invalid email.']);
+        element.errors['unique-entity-1'] = ['This value is already used.'];
+        const fired = record(element.domNode, ['validating', 'success', 'failure']);
+
+        expect(element.validate()).toBe(false);
+
+        expect(fired.map((item) => item.name)).toEqual(['validating', 'failure']);
+        expect(fired[1].detail.errors).toEqual(['This value is already used.', 'Invalid email.']);
+    });
+
+    test('fires no event for a disabled element', () => {
+        const form = createForm();
+        const element = createElement('user_email', createInput(form, 'user_email'));
+        element.disabled = true;
+        const fired = record(element.domNode, ['validating', 'success', 'failure']);
+
+        expect(element.validate()).toBe(true);
+
+        expect(fired).toEqual([]);
+    });
+
+    test('bubbles element events up to the form node', () => {
+        const form = createForm();
+        const root = createElement('user', form);
+        const email = createElement('user_email', createInput(form, 'user_email'));
+        root.children.email = email;
+        email.parent = root;
+        const fired = record(form, ['failure']);
+        addConstraint(email, () => ['Invalid email.']);
+
+        email.validate();
+
+        expect(fired).toHaveLength(1);
+        expect(fired[0].target).toBe(email.domNode);
+        expect(fired[0].detail.element).toBe(email);
+    });
+
+    test('fires form level events on the form node when the root element is validated', () => {
+        const form = createForm();
+        const root = createElement('user', form);
+        const email = createElement('user_email', createInput(form, 'user_email'));
+        root.children.email = email;
+        email.parent = root;
+        addConstraint(email, () => ['Invalid email.']);
+        const fired = record(form, ['form-validating', 'form-success', 'form-failure']);
+
+        root.validateRecursively();
+
+        expect(fired.map((item) => item.name)).toEqual(['form-validating', 'form-failure']);
+        expect(fired[1].detail.element).toBe(root);
+        expect(fired[1].detail.errors).toEqual({
+            user_email: {
+                'form-error-user': [],
+                'form-error-user-email': ['Invalid email.'],
+            },
+        });
+    });
+
+    test('fires form-success when the whole form is valid', () => {
+        const form = createForm();
+        const root = createElement('user', form);
+        const email = createElement('user_email', createInput(form, 'user_email'));
+        root.children.email = email;
+        email.parent = root;
+        const fired = record(form, ['form-validating', 'form-success', 'form-failure']);
+
+        root.validateRecursively();
+
+        expect(fired.map((item) => item.name)).toEqual(['form-validating', 'form-success']);
+        expect(fired[1].detail.errors).toEqual({});
+    });
+
+    test('fires no form level event for a child element', () => {
+        const form = createForm();
+        const root = createElement('user', form);
+        const email = createElement('user_email', createInput(form, 'user_email'));
+        root.children.email = email;
+        email.parent = root;
+        const fired = record(form, ['form-validating', 'form-success', 'form-failure']);
+
+        email.validateRecursively();
+
+        expect(fired).toEqual([]);
+    });
+
+    test('waits for the ajax queue to drain before reporting a UniqueEntity failure', () => {
+        const form = createForm();
+        const root = createElement('user', form);
+        const email = createElement('user_email', createInput(form, 'user_email'));
+        root.children.email = email;
+        email.parent = root;
+        email.domNode.value = 'john@example.com';
+
+        const constraint = new window.SvarohJsFormValidatorBundleFormConstraintUniqueEntity();
+        constraint.fields = ['email'];
+        constraint.groups = ['Default'];
+        constraint.uniqueId = 7;
+        root.data.entity = {
+            constraints: [constraint],
+            getters: {},
+            groups: ['Default'],
+        };
+        window.SvarohJsFormValidator.config = {
+            routing: { check_unique_entity: '/check_unique_entity' },
+        };
+
+        const request = {
+            open: jest.fn(),
+            setRequestHeader: jest.fn(),
+            send: jest.fn(),
+            readyState: 0,
+            status: 0,
+            responseText: '',
+        };
+        jest.spyOn(window.SvarohJsFormValidator.ajax, 'createRequest').mockImplementation(() => request);
+
+        const firedOnField = record(email.domNode, ['validating', 'success', 'failure']);
+        const firedOnForm = record(form, ['form-validating', 'form-success', 'form-failure']);
+
+        root.validateRecursively();
+
+        // The uniqueness answer is still on its way, so nothing is decided yet
+        expect(window.SvarohJsFormValidator.ajax.queue).toBe(1);
+        expect(firedOnField.map((item) => item.name)).toEqual(['validating']);
+        expect(firedOnForm.map((item) => item.name)).toEqual(['form-validating']);
+
+        request.readyState = 4;
+        request.status = 200;
+        request.responseText = 'false';
+        request.onreadystatechange();
+
+        expect(firedOnField.map((item) => item.name)).toEqual(['validating', 'failure']);
+        expect(firedOnField[1].detail.errors).toEqual(['This value is already used.']);
+        expect(firedOnForm.map((item) => item.name)).toEqual(['form-validating', 'form-failure']);
+        expect(firedOnForm[1].detail.errors).toEqual({
+            user_email: {
+                'form-error-user': [],
+                'form-error-user-email': [],
+                'unique-entity-7': ['This value is already used.'],
+            },
+        });
+    });
+
+    test('runs a queued ajax callback once only', () => {
+        const ajax = window.SvarohJsFormValidator.ajax;
+        const callback = jest.fn();
+        ajax.queue = 0;
+        ajax.callbacks = [callback];
+
+        ajax.checkQueue();
+        ajax.checkQueue();
+
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(ajax.callbacks).toEqual([]);
+    });
+
+    test('runs an onAjaxIdle callback at once when no request is pending', () => {
+        const callback = jest.fn();
+
+        window.SvarohJsFormValidator.onAjaxIdle(callback);
+
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(window.SvarohJsFormValidator.ajax.callbacks).toEqual([]);
+    });
+});

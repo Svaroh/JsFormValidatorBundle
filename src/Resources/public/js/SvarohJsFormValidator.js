@@ -67,6 +67,8 @@ export function SvarohJsFormElement() {
             return true;
         }
 
+        SvarohJsFormValidator.dispatchValidationEvent(self, 'validating', []);
+
         // The browser is asked first, while its own diagnosis is still
         // readable: the message of this element is written back into the
         // "customError" state the browser would otherwise answer with
@@ -131,10 +133,29 @@ export function SvarohJsFormElement() {
             SvarohJsFormValidator.syncNativeValidity(target, sourceId);
         }
 
+        // Constraints like UniqueEntity report their errors from an ajax
+        // response, so the outcome is only known once the queue has drained
+        SvarohJsFormValidator.onAjaxIdle(function () {
+            var errors = SvarohJsFormValidator.getElementErrors(self);
+            SvarohJsFormValidator.dispatchValidationEvent(
+                self,
+                errors.length ? 'failure' : 'success',
+                errors
+            );
+        });
+
         return validationErrors.length === 0;
     };
 
     this.validateRecursively = function () {
+        var self = this;
+        // Only the root element stands for the whole form
+        var isRoot = !this.parent;
+
+        if (isRoot) {
+            SvarohJsFormValidator.dispatchValidationEvent(self, 'form-validating', {});
+        }
+
         var isValid = this.validate();
 
         // Every child is validated, even after a failure, so that all the
@@ -143,6 +164,16 @@ export function SvarohJsFormElement() {
             if (!this.children[childName].validateRecursively()) {
                 isValid = false;
             }
+        }
+
+        if (isRoot) {
+            SvarohJsFormValidator.onAjaxIdle(function () {
+                SvarohJsFormValidator.dispatchValidationEvent(
+                    self,
+                    self.isValid() ? 'form-success' : 'form-failure',
+                    SvarohJsFormValidator.getAllErrors(self, {})
+                );
+            });
         }
 
         return isValid;
@@ -281,10 +312,11 @@ function SvarohJsAjaxRequest() {
         }
 
         // Every callback waits for one drain of the queue; keeping them around
-        // would run the submit of a previous form again on the next drain
+        // would run the submit of a previous form again on the next drain, and
+        // a callback may register a new one of its own
         var callbacks = this.callbacks;
         this.callbacks = [];
-        for (var i in callbacks) {
+        for (var i = 0; i < callbacks.length; i++) {
             callbacks[i]();
         }
     };
@@ -559,6 +591,7 @@ var SvarohJsFormValidator = new function () {
     this.forms = {};
     this.formInstances = {};
     this.errorClass = 'form-errors';
+    this.eventPrefix = 'svaroh:';
     this.config = {};
     this.ajax = new SvarohJsAjaxRequest();
     this.customizeMethods = new SvarohJsCustomizeMethods();
@@ -1610,6 +1643,73 @@ var SvarohJsFormValidator = new function () {
         }
 
         return container;
+    };
+
+    /**
+     * Returns a flat list of all the messages of an element, whatever their
+     * source is
+     *
+     * @param {SvarohJsFormElement} element
+     *
+     * @returns {Array}
+     */
+    this.getElementErrors = function (element) {
+        var errors = [];
+        for (var sourceId in element.errors) {
+            errors = errors.concat(element.errors[sourceId]);
+        }
+
+        return errors;
+    };
+
+    /**
+     * Runs a callback as soon as no validation request is pending anymore.
+     * Asynchronous constraints only report their errors when their response
+     * arrives, so an empty error list means nothing while the queue is busy.
+     *
+     * @param {Function} callback
+     */
+    this.onAjaxIdle = function (callback) {
+        if (this.ajax.queue > 0) {
+            this.ajax.callbacks.push(callback);
+        } else {
+            callback();
+        }
+    };
+
+    /**
+     * Dispatches a validation event on the DOM node of an element
+     *
+     * @param {SvarohJsFormElement} element
+     * @param {String} name
+     * @param {Array|Object} errors
+     *
+     * @returns {Event|null}
+     */
+    this.dispatchValidationEvent = function (element, name, errors) {
+        var domNode = element.domNode;
+        if (!domNode || typeof domNode.dispatchEvent !== 'function') {
+            return null;
+        }
+
+        var eventName = this.eventPrefix + name;
+        var detail = {element: element, errors: errors};
+        var event;
+        if (typeof window.CustomEvent === 'function') {
+            event = new window.CustomEvent(eventName, {
+                bubbles: true,
+                cancelable: false,
+                detail: detail
+            });
+        } else {
+            //IE9+
+            event = document.createEvent('CustomEvent');
+            event.initCustomEvent(eventName, true, false, detail);
+        }
+
+        domNode.dispatchEvent(event);
+
+        return event;
     };
 
     /**
