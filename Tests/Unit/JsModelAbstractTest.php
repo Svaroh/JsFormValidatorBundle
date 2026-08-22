@@ -18,6 +18,32 @@ class JsModelAbstractTest extends TestCase
         $this->assertSame("'O\\'Reilly\\\\book'", JsModelAbstract::phpValueToJs("O'Reilly\\book"));
     }
 
+    public function testEscapesCharactersThatWouldBreakAnInlineScript()
+    {
+        $this->assertSame(
+            "'\\u003C/script\\u003E\\u003Cimg src=x onerror=alert(1)\\u003E'",
+            JsModelAbstract::phpValueToJs('</script><img src=x onerror=alert(1)>')
+        );
+        $this->assertSame("'a\\u0026b'", JsModelAbstract::phpValueToJs('a&b'));
+        $this->assertSame("'line1\\nline2'", JsModelAbstract::phpValueToJs("line1\nline2"));
+        $this->assertSame("'line1\\rline2'", JsModelAbstract::phpValueToJs("line1\rline2"));
+        $this->assertSame("'a\\u2028b'", JsModelAbstract::phpValueToJs("a\u{2028}b"));
+        $this->assertSame("'a\\u2029b'", JsModelAbstract::phpValueToJs("a\u{2029}b"));
+        $this->assertSame(
+            "{'a\\u003Cb':'c\\u003Ed'}",
+            JsModelAbstract::phpValueToJs(array('a<b' => 'c>d'))
+        );
+    }
+
+    public function testPrintsTheNonFiniteFloatsAsJavaScriptLiterals()
+    {
+        // "NAN" and "INF" are what PHP casts them to, and neither is JavaScript
+        $this->assertSame('NaN', JsModelAbstract::phpValueToJs(NAN));
+        $this->assertSame('Infinity', JsModelAbstract::phpValueToJs(INF));
+        $this->assertSame('-Infinity', JsModelAbstract::phpValueToJs(-INF));
+        $this->assertSame('12.5', JsModelAbstract::phpValueToJs(12.5));
+    }
+
     public function testConvertsArraysAndObjectsRecursively()
     {
         $value = array(

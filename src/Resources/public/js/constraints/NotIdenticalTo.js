@@ -23,4 +23,4 @@ export default function SymfonyComponentValidatorConstraintsNotIdenticalTo() {
     }
 }
 
-window.SymfonyComponentValidatorConstraintsNotIdenticalTo =  SymfonyComponentValidatorConstraintsNotIdenticalTo;
+window.SymfonyComponentValidatorConstraintsNotIdenticalTo = SymfonyComponentValidatorConstraintsNotIdenticalTo;

@@ -66,7 +66,7 @@ If you are testing before the first tagged release, require the development
 branch explicitly:
 
 ```bash
-composer require svaroh/jsformvalidator-bundle:"dev-master"
+composer require svaroh/jsformvalidator-bundle:"dev-main"
 ```
 
 Register the bundle in `config/bundles.php`:
@@ -105,6 +105,13 @@ svaroh_js_form_validator:
 ```
 
 Make sure your security configuration allows requests to this route.
+
+The endpoint receives the entity class name and the repository method from the
+browser, and answers whether a matching record exists. Treat it as a public
+existence check: restrict it in your firewall, or point
+`svaroh_js_form_validator.routing.check_unique_entity` at your own controller as
+described in [Checking entity uniqueness](src/Resources/doc/3_9.md) when the
+lookup must not be driven by request data.
 
 ## JavaScript Assets
 
@@ -202,6 +209,7 @@ If your form rendering is customized, start with
 11. [onValidate callback](src/Resources/doc/3_11.md)
 12. [Run validation on custom event](src/Resources/doc/3_12.md)
 13. [Collections validation](src/Resources/doc/3_13.md)
+14. [Localized numbers](src/Resources/doc/3_14.md)
 
 ## Development
 

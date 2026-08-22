@@ -1,6 +1,6 @@
 # Agent Notes
 
-Repository: `Svaroh/JsFormValidatorBundle`
+Repository: `Svaroh/JsFormValidatorBundle` (default branch: `main`)
 Upstream 1.x repository: `formapro/JsFormValidatorBundle`
 Local path: `/Volumes/SRC/svaroh/JsFormValidatorBundle`
 
@@ -9,46 +9,54 @@ Local path: `/Volumes/SRC/svaroh/JsFormValidatorBundle`
 - This repository is a new home for the bundle. `formapro/JsFormValidatorBundle`
   keeps the `fp/jsformvalidator-bundle` Composer package.
 - `svaroh/jsformvalidator-bundle` is a new package versioned from `1.0`; it does
-  not continue the `fp/jsformvalidator-bundle` version numbers.
+  not continue the `fp/jsformvalidator-bundle` version numbers. It is not
+  published on Packagist yet, so the README download badge stays broken until it
+  is.
 - The move renames the vendor namespace, bundle class, DI alias, JavaScript
   globals, and Composer package from `Fp`/`fp` to `Svaroh`/`svaroh`.
-- History that predates the move (all in `formapro/JsFormValidatorBundle`):
-  - PR #173 revived the project and was merged into `formapro/master`.
-  - PR #174 restored GitHub Actions CI and was merged into `formapro/master`.
-  - PR #175 restored selected old PR fixes and was merged into `formapro/master`.
-  - Replacement PRs #176, #177, and #178 were merged into `formapro/master`.
-  - `1.7.0-beta1` and `1.8.0` were published from `formapro/master`.
+- History that predates the move lives in `formapro/JsFormValidatorBundle`,
+  where `1.7.0-beta1` and `1.8.0` were published from `master`.
+- PR #1 (`rebrand/svaroh-2.0`) carried the rebrand into this repository.
 
 ## CI
 
-- Added `.github/workflows/ci.yml`.
-- The workflow runs on `push` and `pull_request`.
-- The PHP job runs on PHP `8.4`, `8.5`, and `8.6` nightly.
-- The PHP job runs `composer update`, `composer validate --strict`, and `composer test`.
-- The JavaScript job runs on Node `22` with PHP `8.5`.
-- The JavaScript job installs Cypress system dependencies, then runs `composer update`, `npm install`, and `npm test`.
-- The PHPStan job runs on PHP `8.5`, installs dependencies with `composer update`, warms the Symfony test cache, and runs `composer phpstan`.
-- The Coverage job runs on PHP `8.5` with Xdebug and Node `22`, then runs `composer coverage` and `npm run test:coverage`.
-- Coverage generates Cobertura XML, uploads it with `actions/upload-code-coverage@v1` when GitHub permissions allow, and keeps raw reports as workflow artifacts.
-- Coverage thresholds are enforced by `tools/check-coverage.php`: PHP line coverage at least `50%`, JavaScript line coverage at least `60%`.
-- The old `.travis.yml` file was removed.
-- `README.md` was updated to use a GitHub Actions badge and test instructions instead of Travis CI references.
-- `package.json` no longer advertises the old Travis CI badge in the package description.
+- `.github/workflows/ci.yml` runs on `pull_request` and on `push` to `main`.
+- The PHP job runs on PHP `8.4`, `8.5`, and `8.6` nightly. It runs
+  `composer update`, `composer validate --strict`, and `composer test`.
+- The JavaScript job runs on Node `24` with PHP `8.5`. It installs Cypress
+  system dependencies, then runs `composer update`, `npm install`, `npm test`.
+- The PHPStan job runs on PHP `8.5`, warms the Symfony test cache, and runs
+  `composer phpstan` (level 5).
+- The Coverage job runs on PHP `8.5` with Xdebug and Node `24`, then runs
+  `composer coverage` and `npm run test:coverage`.
+- Coverage generates Cobertura XML, uploads it with
+  `actions/upload-code-coverage@v1` when GitHub permissions allow, and keeps raw
+  reports as workflow artifacts.
+- Coverage thresholds are enforced by `tools/check-coverage.php`: PHP and
+  JavaScript line coverage at least `80%`.
+- No workflow run has been recorded in this repository yet; the first push to
+  `main` after the branch filter fix will be the first real run.
 
 ## Local Validation
 
-- `php /tmp/jsfv-composer.phar test` passes: `5 tests, 18 assertions`.
-- `php /tmp/jsfv-composer.phar phpstan` runs PHPStan with `phpstan.neon`.
-- `php /tmp/jsfv-composer.phar coverage` generates PHP Cobertura coverage and checks the `50%` line threshold.
-- `npm test` passes: Jest `197 tests`; Cypress e2e `16 tests`.
-- `npm run test:coverage` generates Jest coverage and checks the `60%` line threshold.
-- The local `composer` shim is broken with `Could not open input file: /Users/ton/bin/composer`, so use `/tmp/jsfv-composer.phar` locally if needed.
+Last verified in the Nix shell on PHP 8.5.6 / Node 24.16.0:
+
+- `composer test`: 35 tests, 130 assertions.
+- `composer phpstan`: no errors.
+- `composer coverage`: PHP line coverage ~98%, threshold `80%`.
+- `npm run test:unit`: Jest 308 tests.
+- `npm run test:coverage`: JavaScript line coverage ~89%, threshold `80%`.
+- `npm test`: the above plus the Cypress e2e suite, 22 tests.
 
 ## Nix Development Environment
 
 - Prefer `nix develop` from the repository root when Nix is available.
-- The Nix shell provides the latest PHP available in pinned nixpkgs with Xdebug coverage support, Composer, Node.js 24, npm, zip/unzip, and Linux Cypress runtime libraries. It currently resolves to PHP 8.5.
-- The Docker `php-fpm` development image is maintained for vendor installation and ad hoc commands. It uses PHP 8.5, Composer 2, Node.js 24, and the PHP extensions required by the Symfony 8 fixture.
+- The Nix shell provides the latest PHP available in pinned nixpkgs with Xdebug
+  coverage support, Composer, Node.js 24, npm, zip/unzip, and Linux Cypress
+  runtime libraries. It currently resolves to PHP 8.5.
+- The Docker `php-fpm` development image is maintained for vendor installation
+  and ad hoc commands. It uses PHP 8.5, Composer 2, Node.js 24, and the PHP
+  extensions required by the Symfony 8 fixture.
 - Run one-off commands with `nix develop -c <command>`, for example:
   - `nix develop -c composer validate --strict`
   - `nix develop -c composer test`
@@ -56,13 +64,18 @@ Local path: `/Volumes/SRC/svaroh/JsFormValidatorBundle`
   - `nix develop -c composer coverage`
   - `nix develop -c npm test`
   - `nix develop -c npm run test:coverage`
-- On a fresh checkout, run `nix develop -c npm install` first; if Cypress reports a missing binary, run `nix develop -c npx cypress install`.
-- If flakes are not enabled globally, prefix commands with `nix --extra-experimental-features "nix-command flakes"`.
+- On a fresh checkout, run `nix develop -c npm install` first; if Cypress reports
+  a missing binary, run `nix develop -c npx cypress install`.
+- If flakes are not enabled globally, prefix commands with
+  `nix --extra-experimental-features "nix-command flakes"`.
 - `.envrc` uses `use flake`; run `direnv allow` once if using direnv.
-- Inside the Nix shell, use `composer` directly. Outside the Nix shell, keep using `/tmp/jsfv-composer.phar` if the local Composer shim is still broken.
+- The host PHP outside the Nix shell is 8.3, below the `^8.4` requirement, so run
+  the checks inside the shell.
 
-## GitHub Checks Note
+## Known Design Risks
 
-- `gh pr checks 174 --repo formapro/JsFormValidatorBundle --watch=false` reported `no checks reported`.
-- This is expected because PR #174 introduces the GitHub Actions workflow for the first time.
-- After PR #174 is merged, the workflow should exist on `master` and run on subsequent `push` and `pull_request` events.
+- `Controller/AjaxController::checkUniqueEntityAction` takes `entityName` and
+  `repositoryMethod` from the request. Input is validated, but the endpoint is
+  still an existence oracle for any entity unless the application secures the
+  route or replaces the controller. Documented in
+  `src/Resources/doc/3_9.md`.

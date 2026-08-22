@@ -1,6 +1,13 @@
 import './constraints';
 import './transformers';
 
+// The Unicode separators (\p{Z}), controls (\p{Cc}) and format characters
+// (\p{Cf}) that Symfony strips off both ends of a submitted string
+var TRIMMED = '\\s\\u0000-\\u001f\\u007f-\\u00a0\\u00ad\\u0600-\\u0605\\u061c\\u06dd\\u070f'
+    + '\\u0890-\\u0891\\u08e2\\u180e\\u200b-\\u200f\\u2028\\u2029\\u202a-\\u202f'
+    + '\\u205f-\\u2064\\u2066-\\u206f\\u3000\\ufeff\\ufff9-\\ufffb';
+var TRIMMED_EDGES = new RegExp('^[' + TRIMMED + ']+|[' + TRIMMED + ']+$', 'g');
+
 export function SvarohJsFormError(message) {
     this.message = message;
     this.atPath = null;
@@ -35,6 +42,7 @@ export function SvarohJsFormElement() {
     this.name = '';
     this.type = '';
     this.invalidMessage = '';
+    this.trim = true;
     this.bubbling = false;
     this.disabled = false;
     this.transformers = [];
@@ -561,7 +569,15 @@ var SvarohJsFormValidator = new function () {
      */
     this.validateElement = function (element) {
         var errors = [];
-        var value = this.getElementValue(element);
+        var value;
+
+        try {
+            value = this.getElementValue(element);
+        } catch (error) {
+            // Symfony reports a value it cannot reverse transform with the
+            // "invalid_message" of the element and skips its constraints
+            return [new SvarohJsFormError(this.getTransformationFailureMessage(element, error))];
+        }
 
         for (var type in element.data) {
             if ('entity' == type && element.parent && !this.shouldValidEmbedded(element)) {
@@ -597,6 +613,21 @@ var SvarohJsFormValidator = new function () {
             }
         }
         return errors;
+    };
+
+    /**
+     * @param {SvarohJsFormElement} element
+     * @param {Error} error
+     *
+     * @return {String}
+     */
+    this.getTransformationFailureMessage = function (element, error) {
+        var message = element.invalidMessage || (error && error.message) || 'This value is not valid.';
+
+        return String(message).replace(
+            '{{ value }}',
+            SvarohJsBaseConstraint.formatValue(this.getInputValue(element))
+        );
     };
 
     this.shouldValidEmbedded = function (element) {
@@ -696,7 +727,29 @@ var SvarohJsFormValidator = new function () {
     };
 
     this.getInputValue = function (element) {
-        return element.domNode ? element.domNode.value : undefined;
+        if (!element.domNode) {
+            return undefined;
+        }
+
+        return false === element.trim ? element.domNode.value : this.trimValue(element.domNode.value);
+    };
+
+    /**
+     * Symfony trims the submitted value before any transformer sees it, unless
+     * the element is configured with "trim" set to false. The character class
+     * is the one of Symfony\Component\Form\Util\StringUtil: the Unicode
+     * separators, controls and format characters.
+     *
+     * @param {*} value
+     *
+     * @return {*}
+     */
+    this.trimValue = function (value) {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return value.replace(TRIMMED_EDGES, '');
     };
 
     this.getMappedValue = function (element) {

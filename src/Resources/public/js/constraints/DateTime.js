@@ -20,4 +20,4 @@ export default function SymfonyComponentValidatorConstraintsDateTime() {
     }
 }
 
-window.SymfonyComponentValidatorConstraintsDateTime;
+window.SymfonyComponentValidatorConstraintsDateTime = SymfonyComponentValidatorConstraintsDateTime;

@@ -6,4 +6,8 @@ import './ChoiceToBooleanArray.js';
 import './ChoiceToValue.js';
 import './DataTransformerChain.js';
 import './DateTimeToArray.js';
+import './IntegerToLocalizedString.js';
+import './MoneyToLocalizedString.js';
+import './NumberToLocalizedString.js';
+import './PercentToLocalizedString.js';
 import './ValueToDuplicates.js';

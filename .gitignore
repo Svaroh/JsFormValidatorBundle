@@ -14,5 +14,6 @@ Tests/app/var
 Tests/app/config/reference.php
 Tests/app/public/bundles
 Tests/app/public/build
-cypress/plugins
-cypress
+cypress/downloads
+cypress/screenshots
+cypress/videos

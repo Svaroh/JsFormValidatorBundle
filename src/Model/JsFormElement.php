@@ -32,6 +32,14 @@ class JsFormElement extends JsModelAbstract
     public $invalidMessage;
 
     /**
+     * Whether the submitted value is trimmed before it is transformed, as the
+     * "trim" option of the form makes Symfony do
+     *
+     * @var bool
+     */
+    public $trim = true;
+
+    /**
      * @var bool
      */
     public $bubbling = false;

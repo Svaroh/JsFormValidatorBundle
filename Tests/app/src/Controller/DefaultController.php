@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Form\LocalizedForm;
 use App\Form\TestForm;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,6 +18,16 @@ class DefaultController extends AbstractController
 
         return $this->render('default/index.html.twig', [
             'testForm' => $testForm->createView(),
+        ]);
+    }
+
+    #[Route('/{_locale}/localized', name: 'localized_index')]
+    public function localized(Request $request): Response
+    {
+        $localizedForm = $this->createForm(LocalizedForm::class);
+
+        return $this->render('default/localized.html.twig', [
+            'localizedForm' => $localizedForm->createView(),
         ]);
     }
 }

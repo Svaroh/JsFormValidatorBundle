@@ -11,7 +11,7 @@
     "test:e2e:serve": "APP_ENV=test APP_DEBUG=1 php -S 127.0.0.1:8000 -t Tests/app/public Tests/app/public/index.php",
     "test:e2e:run": "cypress run --config baseUrl=http://127.0.0.1:8000"
   },
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@babel/core": "^8.0.1",
     "@babel/preset-env": "^8.0.2",

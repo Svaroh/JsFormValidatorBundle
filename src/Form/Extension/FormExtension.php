@@ -52,14 +52,4 @@ class FormExtension extends AbstractTypeExtension
     {
         return array(FormType::class);
     }
-
-    /**
-     * Returns the name of the type being extended.
-     *
-     * @return string The name of the type being extended
-     */
-    public function getExtendedType()
-    {
-        return FormType::class;
-    }
 }

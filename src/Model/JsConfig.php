@@ -3,9 +3,9 @@
 namespace Svaroh\JsFormValidatorBundle\Model;
 
 /**
- * This is the main model that describes each of the form elements
+ * This model describes the bundle configuration passed to the browser
  *
- * Class JsFormElement
+ * Class JsConfig
  *
  * @package Svaroh\JsFormValidatorBundle\Model
  */

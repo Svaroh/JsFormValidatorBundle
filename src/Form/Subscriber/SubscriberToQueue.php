@@ -8,9 +8,9 @@ use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Form\FormInterface;
 
 /**
- * Class FormSubscriber
+ * Class SubscriberToQueue
  *
- * @package Svaroh\JsFormValidatorBundle\Form\EventSubscriber
+ * @package Svaroh\JsFormValidatorBundle\Form\Subscriber
  */
 class SubscriberToQueue implements EventSubscriberInterface
 {
