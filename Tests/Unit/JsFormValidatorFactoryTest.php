@@ -321,6 +321,44 @@ class JsFormValidatorFactoryTest extends TestCase
         $this->assertArrayHasKey(Assert\IsTrue::class, $model->data['entity']['getters']['isActive']);
     }
 
+    public function testComparisonConstraintsExportTheirPropertyPaths()
+    {
+        $validator = Validation::createValidatorBuilder()
+            ->enableAttributeMapping()
+            ->getValidator()
+        ;
+        $factory = $this->createFactory($validator);
+        $formFactory = $this->createFormFactory($factory, $validator);
+        $form = $formFactory
+            ->createNamedBuilder('booking', FormType::class, new ComparedUser(), array(
+                'data_class' => ComparedUser::class,
+            ))
+            ->add('startDate', TextType::class)
+            ->add('endDate', TextType::class)
+            ->add('guests', IntegerType::class)
+            ->getForm()
+        ;
+        $factory->addToQueue($form);
+
+        $model = $factory->createJsModel($form);
+
+        $greaterThan = $model->children['endDate']->data['parent']['constraints'][Assert\GreaterThan::class][0];
+        $this->assertSame('startDate', $greaterThan->propertyPath);
+        $this->assertNull($greaterThan->value);
+
+        $range = $model->children['guests']->data['parent']['constraints'][Assert\Range::class][0];
+        $this->assertSame('minGuests', $range->minPropertyPath);
+        $this->assertSame('maxGuests', $range->maxPropertyPath);
+
+        // The client side reads the compared value from the pointed field, so
+        // the paths have to survive into the generated JavaScript model
+        $javascript = $factory->getJsValidatorString('booking', false);
+
+        $this->assertStringContainsString("'propertyPath':'startDate'", $javascript);
+        $this->assertStringContainsString("'minPropertyPath':'minGuests'", $javascript);
+        $this->assertStringContainsString("'maxPropertyPath':'maxGuests'", $javascript);
+    }
+
     public function testExpandedChoicesExposeBooleanArrayTransformers()
     {
         $factory = $this->createFactory();
@@ -591,6 +629,21 @@ class MetadataUser
     {
         return true;
     }
+}
+
+class ComparedUser
+{
+    public $startDate;
+
+    #[Assert\GreaterThan(propertyPath: 'startDate', message: 'End smaller than start.')]
+    public $endDate;
+
+    public $minGuests = 1;
+
+    public $maxGuests = 4;
+
+    #[Assert\Range(minPropertyPath: 'minGuests', maxPropertyPath: 'maxGuests')]
+    public $guests;
 }
 
 class TestableJsFormValidatorFactory extends JsFormValidatorFactory

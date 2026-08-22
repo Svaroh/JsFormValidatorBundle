@@ -509,6 +509,26 @@ var SvarohJsBaseConstraint = {
         return realMsg;
     },
 
+    /**
+     * Returns the value a comparison constraint has to compare against: either
+     * the "value" option or, when the "propertyPath" option is used instead, the
+     * current value of the field that property of the validated object is bound
+     * to. A path pointing outside of the form gives undefined, which tells the
+     * constraint to stay silent and leave the answer to the server.
+     *
+     * @param {Object} constraint
+     * @param {SvarohJsFormElement} scope
+     *
+     * @return {*}
+     */
+    getComparedValue: function (constraint, scope) {
+        if (!constraint.propertyPath) {
+            return constraint.value;
+        }
+
+        return SvarohJsFormValidator.getPropertyPathValue(scope, constraint.propertyPath);
+    },
+
     formatValue: function (value) {
         switch (Object.prototype.toString.call(value)) {
             case '[object Date]':
@@ -864,11 +884,13 @@ var SvarohJsFormValidator = new function () {
             if (typeof groupsValue == "string") {
                 groupsValue = this.getParentElementById(groupsValue, element).groups.apply(element.domNode);
             }
+            var scope = this.getValidatedObjectElement(element, type);
             errors = errors.concat(this.validateConstraints(
                 value,
                 element.data[type]['constraints'],
                 groupsValue,
-                element
+                element,
+                scope
             ));
 
             for (var getterName in element.data[type]['getters']) {
@@ -878,7 +900,8 @@ var SvarohJsFormValidator = new function () {
                         receivedValue,
                         element.data[type]['getters'][getterName],
                         groupsValue,
-                        element
+                        element,
+                        scope
                     ));
                 }
             }
@@ -927,19 +950,99 @@ var SvarohJsFormValidator = new function () {
     };
 
     /**
+     * Returns the element that stands for the object Symfony validates, the one
+     * a constraint resolves its "propertyPath" option against. Constraints
+     * declared on the class of the element ("entity") belong to the data of the
+     * element itself, the ones coming from the class of the parent ("parent") or
+     * from the form definition ("form") belong to the data of the parent form.
+     *
+     * @param {SvarohJsFormElement} element
+     * @param {String} type
+     *
+     * @return {SvarohJsFormElement}
+     */
+    this.getValidatedObjectElement = function (element, type) {
+        if ('entity' === type) {
+            return element;
+        }
+
+        return element.parent || element;
+    };
+
+    /**
+     * Finds the element holding the value a Symfony property path points to.
+     * Only paths made of property names are supported: each of their segments is
+     * looked up among the children of the given element, the way Symfony maps
+     * the fields of a form onto the properties of its data.
+     *
+     * @param {SvarohJsFormElement} scope
+     * @param {String} propertyPath
+     *
+     * @return {SvarohJsFormElement|null}
+     */
+    this.findElementByPropertyPath = function (scope, propertyPath) {
+        if (!scope || !propertyPath) {
+            return null;
+        }
+
+        var path = String(propertyPath).replace(/\[([^\]]*)\]/g, '.$1').split('.');
+        var element = scope;
+
+        for (var index = 0; index < path.length; index++) {
+            var segment = path[index];
+            if ('' === segment) {
+                continue;
+            }
+
+            if (!element.children || !element.children[segment]) {
+                return null;
+            }
+
+            element = element.children[segment];
+        }
+
+        return element === scope ? null : element;
+    };
+
+    /**
+     * Returns the current value of the element a "propertyPath" option points
+     * to, or undefined when the path matches no field of the form
+     *
+     * @param {SvarohJsFormElement} scope
+     * @param {String} propertyPath
+     *
+     * @return {*}
+     */
+    this.getPropertyPathValue = function (scope, propertyPath) {
+        var element = this.findElementByPropertyPath(scope, propertyPath);
+        if (!element) {
+            return undefined;
+        }
+
+        try {
+            return this.getElementValue(element);
+        } catch (error) {
+            // A value the referenced field cannot reverse transform is reported
+            // on that field, it does not make the current one invalid
+            return undefined;
+        }
+    };
+
+    /**
      * @param value
      * @param {Array} constraints
      * @param {Array} groups
      * @param {SvarohJsFormElement} owner
+     * @param {SvarohJsFormElement} scope
      *
      * @return {Array}
      */
-    this.validateConstraints = function (value, constraints, groups, owner) {
+    this.validateConstraints = function (value, constraints, groups, owner, scope) {
         var errors = [];
         var i = constraints.length;
         while (i--) {
             if (this.checkValidationGroups(groups, constraints[i])) {
-                errors = errors.concat(constraints[i].validate(value, owner));
+                errors = errors.concat(constraints[i].validate(value, owner, scope));
             }
         }
 
