@@ -9,10 +9,39 @@ export default function SymfonyComponentValidatorConstraintsRange() {
     this.minMessage = '';
     this.notInRangeMessage = '';
     this.invalidMessage = '';
+    this.invalidDateTimeMessage = '';
     this.max = null;
     this.min = null;
     this.maxPropertyPath = null;
     this.minPropertyPath = null;
+
+    /**
+     * The shapes a date value or a date bound can have: "Y-m-d", "Y-m-d H:i:s"
+     * and the HTML5 "Y-m-d\TH:i" of a datetime-local input
+     */
+    var DATE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/;
+
+    /**
+     * Converts a date string to a number which keeps the chronological order,
+     * so dates of a different precision stay comparable. Anything which is not
+     * a date string becomes NaN, just like a non numeric value does.
+     *
+     * @param {*} value
+     *
+     * @return {Number}
+     */
+    this.toDateNumber = function (value) {
+        var parts = 'string' === typeof value ? DATE.exec(value) : null;
+
+        if (null === parts) {
+            return NaN;
+        }
+
+        return parseInt(
+            parts[1] + parts[2] + parts[3] + (parts[4] || '00') + (parts[5] || '00') + (parts[6] || '00'),
+            10
+        );
+    };
 
     /**
      * @param {*} value
@@ -22,40 +51,67 @@ export default function SymfonyComponentValidatorConstraintsRange() {
     this.validate = function (value, element, scope) {
         var errors = [];
         var f = SvarohJsFormValidator;
-        var min = this.getLimit(this.min, this.minPropertyPath, scope);
-        var max = this.getLimit(this.max, this.maxPropertyPath, scope);
+        // The bounds as they are reported to the user: a number, or the date
+        // string a date bound keeps
+        var minLimit = this.getLimit(this.min, this.minPropertyPath, scope);
+        var maxLimit = this.getLimit(this.max, this.maxPropertyPath, scope);
 
         if (f.isValueEmty(value)) {
             return errors;
         }
-        if (isNaN(value)) {
-            errors.push(
-                this.invalidMessage
-                    .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
-            );
+
+        // Symfony compares a date value as a date as soon as a bound is a date.
+        // Relative bounds such as "today" are resolved to a concrete date by
+        // the PHP side, so both bounds are plain date strings here
+        var min = this.toDateNumber(minLimit);
+        var max = this.toDateNumber(maxLimit);
+        var subject = value;
+
+        if (!isNaN(min) || !isNaN(max)) {
+            subject = this.toDateNumber(value);
+
+            if (isNaN(subject)) {
+                errors.push(
+                    this.invalidDateTimeMessage
+                        .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
+                );
+
+                return errors;
+            }
+        } else {
+            min = minLimit;
+            max = maxLimit;
+
+            if (isNaN(value)) {
+                errors.push(
+                    this.invalidMessage
+                        .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
+                );
+            }
         }
-        if (this.notInRangeMessage && !isNaN(min) && !isNaN(max) && (value < min || value > max)) {
+
+        if (this.notInRangeMessage && !isNaN(min) && !isNaN(max) && (subject < min || subject > max)) {
             errors.push(
                 this.notInRangeMessage
                     .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
-                    .replace('{{ min }}', SvarohJsBaseConstraint.formatValue(min))
-                    .replace('{{ max }}', SvarohJsBaseConstraint.formatValue(max))
+                    .replace('{{ min }}', SvarohJsBaseConstraint.formatValue(minLimit))
+                    .replace('{{ max }}', SvarohJsBaseConstraint.formatValue(maxLimit))
             );
 
             return errors;
         }
-        if (!isNaN(max) && value > max) {
+        if (!isNaN(max) && subject > max) {
             errors.push(
                 this.maxMessage
                     .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
-                    .replace('{{ limit }}', SvarohJsBaseConstraint.formatValue(max))
+                    .replace('{{ limit }}', SvarohJsBaseConstraint.formatValue(maxLimit))
             );
         }
-        if (!isNaN(min) && value < min) {
+        if (!isNaN(min) && subject < min) {
             errors.push(
                 this.minMessage
                     .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
-                    .replace('{{ limit }}', SvarohJsBaseConstraint.formatValue(min))
+                    .replace('{{ limit }}', SvarohJsBaseConstraint.formatValue(minLimit))
             );
         }
 
@@ -65,26 +121,34 @@ export default function SymfonyComponentValidatorConstraintsRange() {
     /**
      * Returns the limit to compare with: the "min"/"max" option, or the current
      * value of the field the "minPropertyPath"/"maxPropertyPath" option points
-     * to. A path pointing outside of the form gives NaN, which leaves that side
-     * of the range unchecked here and lets the server report it.
+     * to. A date is kept as the string it is, the way "onCreate" keeps a date
+     * option; a path pointing outside of the form gives NaN, which leaves that
+     * side of the range unchecked here and lets the server report it.
      *
-     * @param {Number} limit
+     * @param {Number|String} limit
      * @param {String} propertyPath
      * @param {SvarohJsFormElement} scope
      *
-     * @return {Number}
+     * @return {Number|String}
      */
     this.getLimit = function (limit, propertyPath, scope) {
         if (!propertyPath) {
             return limit;
         }
 
-        return parseFloat(SvarohJsFormValidator.getPropertyPathValue(scope, propertyPath));
+        var value = SvarohJsFormValidator.getPropertyPathValue(scope, propertyPath);
+
+        return isNaN(this.toDateNumber(value)) ? parseFloat(value) : value;
     };
 
     this.onCreate = function () {
-        this.min = parseFloat(this.min);
-        this.max = parseFloat(this.max);
+        // A date bound stays a string, parseFloat() would cut "2017-06-29" to 2017
+        if (isNaN(this.toDateNumber(this.min))) {
+            this.min = parseFloat(this.min);
+        }
+        if (isNaN(this.toDateNumber(this.max))) {
+            this.max = parseFloat(this.max);
+        }
     }
 }
 

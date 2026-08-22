@@ -226,6 +226,7 @@ If your form rendering is customized, start with
 15. [HTML5 validation](src/Resources/doc/3_15.md)
 16. [The NotBlank constraint](src/Resources/doc/3_16.md)
 17. [Comparing a field with another field](src/Resources/doc/3_17.md)
+18. [The Range constraint on dates](src/Resources/doc/3_18.md)
 
 ## Development
 
