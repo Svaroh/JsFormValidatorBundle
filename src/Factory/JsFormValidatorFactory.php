@@ -181,7 +181,36 @@ class JsFormValidatorFactory
      */
     public function addToQueue(FormInterface $form)
     {
-        $this->queue[$form->getName()] = $form;
+        if ($this->inQueue($form)) {
+            return;
+        }
+
+        $this->queue[$this->createQueueKey($form)] = $form;
+    }
+
+    /**
+     * One form type can be rendered several times on a single page, e.g. once
+     * per row of a listing. Every one of those forms is a form of its own and
+     * needs a model of its own, so a repeated name gets an own queue key
+     * instead of replacing the form which is already queued
+     *
+     * @param FormInterface $form
+     *
+     * @return string
+     */
+    protected function createQueueKey(FormInterface $form)
+    {
+        $name = $form->getName();
+        if (!isset($this->queue[$name])) {
+            return $name;
+        }
+
+        $index = 1;
+        while (isset($this->queue[$name . '#' . $index])) {
+            $index++;
+        }
+
+        return $name . '#' . $index;
     }
 
     /**
@@ -193,7 +222,7 @@ class JsFormValidatorFactory
      */
     public function inQueue(FormInterface $form)
     {
-        return isset($this->queue[$form->getName()]);
+        return in_array($form, $this->queue, true);
     }
 
     /**
@@ -203,10 +232,10 @@ class JsFormValidatorFactory
      */
     public function siftQueue()
     {
-        foreach ($this->queue as $name => $form) {
+        foreach ($this->queue as $key => $form) {
             $blockName = $form->getConfig()->getOption('block_name');
-            if ('_token' == $name || 'entry' == $blockName || $form->getParent()) {
-                unset($this->queue[$name]);
+            if ('_token' == $form->getName() || 'entry' == $blockName || $form->getParent()) {
+                unset($this->queue[$key]);
             }
         }
 
@@ -839,6 +868,41 @@ class JsFormValidatorFactory
         return $date->format($format);
     }
 
+    /**
+     * Keys of all the queued forms with the given name, in the order they were
+     * queued
+     *
+     * @param string $formName
+     *
+     * @return array
+     */
+    protected function findQueueKeys($formName)
+    {
+        $result = array();
+        foreach ($this->queue as $key => $form) {
+            if ($formName === $form->getName()) {
+                $result[] = $key;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Names of the queued forms, without the repeated ones
+     *
+     * @return array
+     */
+    protected function getQueuedFormNames()
+    {
+        $names = array();
+        foreach ($this->queue as $form) {
+            $names[$form->getName()] = true;
+        }
+
+        return array_keys($names);
+    }
+
     public function getJsConfigString()
     {
         return '<script type="text/javascript">SvarohJsFormValidator.config = ' . $this->createJsConfigModel() . ';</script>';
@@ -859,12 +923,16 @@ class JsFormValidatorFactory
         $models = array();
         // Process just the specified form
         if ($formName) {
-            if (!isset($this->queue[$formName])) {
-                $list = implode(', ', array_keys($this->queue));
+            $keys = $this->findQueueKeys($formName);
+            if (!$keys) {
+                $list = implode(', ', $this->getQueuedFormNames());
                 throw new UndefinedFormException("Form '$formName' was not found. Existing forms: $list");
             }
-            $models[] = $this->createJsModel($this->queue[$formName]);
-            unset($this->queue[$formName]);
+            // Each render of that form gets a model of its own
+            foreach ($keys as $key) {
+                $models[] = $this->createJsModel($this->queue[$key]);
+                unset($this->queue[$key]);
+            }
         } else { // Or process whole queue
             $models = $this->processQueue();
         }

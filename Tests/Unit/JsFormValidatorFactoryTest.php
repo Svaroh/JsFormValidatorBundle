@@ -237,6 +237,47 @@ class JsFormValidatorFactoryTest extends TestCase
         $this->assertSame(array(), $factory->getQueue());
     }
 
+    public function testEveryRenderOfTheSameFormIsQueuedOnItsOwn()
+    {
+        $factory = $this->createFactory();
+        $formFactory = $this->createFormFactory($factory);
+        // One form type rendered once per row of a listing
+        $first = $formFactory
+            ->createNamedBuilder('profile', FormType::class)
+            ->add('name', TextType::class, array('constraints' => array(new NotBlank())))
+            ->getForm()
+        ;
+        $second = $formFactory
+            ->createNamedBuilder('profile', FormType::class)
+            ->add('name', TextType::class, array('constraints' => array(new NotBlank())))
+            ->getForm()
+        ;
+
+        $this->assertTrue($factory->inQueue($first));
+        $this->assertTrue($factory->inQueue($second));
+        $this->assertSame(array('profile', 'profile#1'), array_keys($factory->getQueue()));
+
+        $models = $factory->processQueue();
+
+        $this->assertCount(2, $models);
+        $this->assertSame('profile', $models[0]->id);
+        $this->assertSame('profile', $models[1]->id);
+    }
+
+    public function testAllTheRendersOfTheRequestedFormAreInitialized()
+    {
+        $factory = $this->createFactory();
+        $formFactory = $this->createFormFactory($factory);
+        $formFactory->createNamedBuilder('profile', FormType::class)->getForm();
+        $formFactory->createNamedBuilder('profile', FormType::class)->getForm();
+        $formFactory->createNamedBuilder('other', FormType::class)->getForm();
+
+        $javascript = $factory->getJsValidatorString('profile', false);
+
+        $this->assertSame(2, substr_count($javascript, 'SvarohJsFormValidator.addModel({\'id\':\'profile\''));
+        $this->assertSame(array('other'), array_keys($factory->getQueue()));
+    }
+
     public function testThrowsWhenRequestedQueuedFormDoesNotExist()
     {
         $factory = $this->createFactory();

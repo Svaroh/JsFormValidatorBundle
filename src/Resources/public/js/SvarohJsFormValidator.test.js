@@ -387,6 +387,7 @@ describe('SvarohJsFormValidator HTML5 integration', () => {
         document.body.innerHTML = '';
         window.SvarohJsFormValidator.config = {};
         window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.formInstances = {};
     });
 
     function enableHtml5() {
@@ -657,6 +658,7 @@ describe('SvarohJsFormValidator runtime helpers', () => {
     afterEach(() => {
         document.body.innerHTML = '';
         window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.formInstances = {};
         window.SvarohJsFormValidator.constraintsCounter = 0;
         window.SvarohJsFormValidator.ajax.queue = 0;
         window.SvarohJsFormValidator.ajax.callbacks = [];
@@ -1198,6 +1200,7 @@ describe('SvarohJsFormValidator model registration', () => {
     afterEach(() => {
         document.body.innerHTML = '';
         window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.formInstances = {};
         window.SvarohJsFormValidator.constraintsCounter = 0;
     });
 
@@ -1426,6 +1429,7 @@ describe('SvarohJsFormValidator repeated fields', () => {
             + '<input type="password" id="user_password_second" name="user[password][second]" value="' + second + '">'
             + '</form>';
         window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.formInstances = {};
         window.SvarohJsFormValidator.addModel(model(), false);
 
         return window.SvarohJsFormValidator.forms.user;
@@ -1434,6 +1438,7 @@ describe('SvarohJsFormValidator repeated fields', () => {
     afterEach(() => {
         document.body.innerHTML = '';
         window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.formInstances = {};
         window.SvarohJsFormValidator.constraintsCounter = 0;
     });
 
@@ -1475,5 +1480,132 @@ describe('SvarohJsFormValidator repeated fields', () => {
                 'value-to-duplicates-user_password_first': ['The values do not match.'],
             },
         });
+    });
+});
+
+describe('SvarohJsFormValidator repeated forms', () => {
+    const rowMarkup = '<form name="profile" method="post">'
+        + '<div id="profile">'
+        + '<input type="text" id="profile_name" name="profile[name]" value="">'
+        + '</div>'
+        + '</form>';
+
+    function createModel() {
+        return {
+            id: 'profile',
+            name: 'profile',
+            type: '',
+            invalidMessage: '',
+            trim: true,
+            bubbling: false,
+            disabled: false,
+            transformers: [],
+            data: {},
+            children: {
+                name: {
+                    id: 'profile_name',
+                    name: 'profile[name]',
+                    type: '',
+                    invalidMessage: '',
+                    trim: true,
+                    bubbling: false,
+                    disabled: false,
+                    transformers: [],
+                    data: {
+                        form: {
+                            groups: ['Default'],
+                            constraints: {
+                                'Symfony\\Component\\Validator\\Constraints\\NotBlank': [{
+                                    message: 'Name is required.',
+                                    groups: ['Default'],
+                                }],
+                            },
+                            getters: {},
+                        },
+                    },
+                    children: {},
+                },
+            },
+        };
+    }
+
+    beforeEach(() => {
+        // The same form type rendered once per row of a listing
+        document.body.innerHTML = rowMarkup + rowMarkup;
+        window.SvarohJsFormValidator.addModel(createModel(), false);
+        window.SvarohJsFormValidator.addModel(createModel(), false);
+    });
+
+    afterEach(() => {
+        document.body.innerHTML = '';
+        window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.formInstances = {};
+        window.SvarohJsFormValidator.constraintsCounter = 0;
+    });
+
+    test('gives every render an element of its own', () => {
+        const forms = document.getElementsByTagName('form');
+        const inputs = document.getElementsByTagName('input');
+        const instances = window.SvarohJsFormValidator.getFormInstances('profile');
+
+        expect(instances).toHaveLength(2);
+        expect(instances[0]).not.toBe(instances[1]);
+        expect(instances[0].domNode).toBe(forms[0]);
+        expect(instances[1].domNode).toBe(forms[1]);
+        expect(instances[0].children.name.domNode).toBe(inputs[0]);
+        expect(instances[1].children.name.domNode).toBe(inputs[1]);
+        expect(forms[0].jsFormValidator).toBe(instances[0]);
+        expect(forms[1].jsFormValidator).toBe(instances[1]);
+    });
+
+    test('keeps the errors of one render out of the other', () => {
+        const inputs = document.getElementsByTagName('input');
+        const instances = window.SvarohJsFormValidator.getFormInstances('profile');
+        inputs[0].value = 'John';
+        inputs[1].value = '';
+
+        instances[1].validateRecursively();
+
+        expect(instances[0].isValid()).toBe(true);
+        expect(instances[1].isValid()).toBe(false);
+        expect(inputs[0].previousSibling).toBeNull();
+        expect(inputs[1].previousSibling.className).toBe('form-errors');
+        expect(inputs[1].previousSibling.textContent).toBe('Name is required.');
+        expect(window.SvarohJsFormValidator.getAllErrors(instances[0], {})).toEqual({});
+        expect(window.SvarohJsFormValidator.getAllErrors(instances[1], {})).toEqual({
+            profile_name: {
+                'form-error-profile': [],
+                'form-error-profile-name': ['Name is required.'],
+            },
+        });
+    });
+
+    test('submits the valid render and stops the invalid one', () => {
+        const forms = document.getElementsByTagName('form');
+        const inputs = document.getElementsByTagName('input');
+        inputs[0].value = 'John';
+        inputs[1].value = '';
+
+        const submitted = new Event('submit', { cancelable: true, bubbles: true });
+        forms[0].dispatchEvent(submitted);
+        const prevented = new Event('submit', { cancelable: true, bubbles: true });
+        forms[1].dispatchEvent(prevented);
+
+        expect(submitted.defaultPrevented).toBe(false);
+        expect(prevented.defaultPrevented).toBe(true);
+        expect(inputs[0].previousSibling).toBeNull();
+        expect(inputs[1].previousSibling.className).toBe('form-errors');
+    });
+
+    test('reinitializing the same markup replaces the element of that render', () => {
+        window.SvarohJsFormValidator.addModel(createModel(), false);
+
+        const forms = document.getElementsByTagName('form');
+        const instances = window.SvarohJsFormValidator.getFormInstances('profile');
+
+        expect(instances).toHaveLength(2);
+        expect(instances[0].domNode).toBe(forms[0]);
+        expect(instances[1].domNode).toBe(forms[1]);
+        expect(forms[0].jsFormValidator).toBe(instances[0]);
     });
 });
