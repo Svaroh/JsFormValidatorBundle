@@ -1203,13 +1203,18 @@ var SvarohJsFormValidator = new function () {
 
     /**
      * Get related element to show error list
+     *
+     * Bubbling errors are moved up one level at a time, the same way Symfony
+     * does it, so they stop on the closest non-bubbling ancestor instead of
+     * always landing on the form root.
+     *
      * @param {SvarohJsFormElement} element
      */
     this.getErrorPathElement = function (element) {
-        if (!element.bubbling) {
-            return element;
+        if (element.bubbling && element.parent) {
+            return this.getErrorPathElement(element.parent);
         } else {
-            return this.getRootElement(element);
+            return element;
         }
     };
 
