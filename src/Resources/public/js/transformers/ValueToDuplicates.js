@@ -15,16 +15,21 @@ export default function SymfonyComponentFormExtensionCoreDataTransformerValueToD
                 initialValue = value[key];
             }
 
-            var child = element.children[this.keys[0]];
             if (value[key] !== initialValue) {
                 errors.push(element.invalidMessage);
                 break;
             }
         }
-        SvarohJsFormValidator.customize(child.domNode, 'showErrors', {
-            errors: errors,
-            sourceId: 'value-to-duplicates-' + child.id
-        });
+
+        // Symfony reports the mismatch on the first child, which is not part
+        // of the model when its own validation is disabled
+        var child = element.children[this.keys[0]];
+        if (child) {
+            SvarohJsFormValidator.customize(child.domNode, 'showErrors', {
+                errors: errors,
+                sourceId: 'value-to-duplicates-' + child.id
+            });
+        }
 
         return initialValue;
     }

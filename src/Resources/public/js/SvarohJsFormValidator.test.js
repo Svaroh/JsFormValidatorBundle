@@ -1354,3 +1354,126 @@ describe('SvarohJsFormValidator property paths', () => {
         ).toEqual(['End smaller than start']);
     });
 });
+
+describe('SvarohJsFormValidator repeated fields', () => {
+    const REPEATED_TYPE = 'Symfony\\Component\\Form\\Extension\\Core\\Type\\RepeatedType';
+    const PASSWORD_TYPE = 'Symfony\\Component\\Form\\Extension\\Core\\Type\\PasswordType';
+    const DUPLICATES = 'Symfony\\Component\\Form\\Extension\\Core\\DataTransformer\\ValueToDuplicatesTransformer';
+
+    function child(name, data) {
+        return {
+            id: 'user_password_' + name,
+            name,
+            type: PASSWORD_TYPE,
+            invalidMessage: 'The password is invalid.',
+            trim: false,
+            bubbling: false,
+            data: data || [],
+            transformers: [],
+            children: [],
+        };
+    }
+
+    // The shape the factory builds for a "password" property carrying a Length
+    // constraint: the constraint sits on the first child, not on the repeated
+    // element, which keeps only the transformer
+    function model() {
+        return {
+            id: 'user',
+            name: 'user',
+            type: 'Symfony\\Component\\Form\\Extension\\Core\\Type\\FormType',
+            invalidMessage: 'This value is not valid.',
+            trim: true,
+            bubbling: true,
+            data: [],
+            transformers: [],
+            children: {
+                password: {
+                    id: 'user_password',
+                    name: 'password',
+                    type: REPEATED_TYPE,
+                    invalidMessage: 'The values do not match.',
+                    trim: true,
+                    bubbling: false,
+                    data: [],
+                    transformers: [{ name: DUPLICATES, keys: ['first', 'second'] }],
+                    children: {
+                        first: child('first', {
+                            form: {
+                                groups: ['Default'],
+                                constraints: {
+                                    'Symfony\\Component\\Validator\\Constraints\\Length': [{
+                                        groups: ['Default'],
+                                        min: 6,
+                                        max: null,
+                                        minMessage: 'The password is too short.',
+                                        maxMessage: 'The password is too long.',
+                                        exactMessage: 'The password is not long enough.',
+                                    }],
+                                },
+                            },
+                        }),
+                        second: child('second'),
+                    },
+                },
+            },
+        };
+    }
+
+    function render(first, second) {
+        document.body.innerHTML = '<form id="user" name="user">'
+            + '<input type="password" id="user_password_first" name="user[password][first]" value="' + first + '">'
+            + '<input type="password" id="user_password_second" name="user[password][second]" value="' + second + '">'
+            + '</form>';
+        window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.addModel(model(), false);
+
+        return window.SvarohJsFormValidator.forms.user;
+    }
+
+    afterEach(() => {
+        document.body.innerHTML = '';
+        window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.constraintsCounter = 0;
+    });
+
+    test('reports a property violation once, on the first input', () => {
+        const form = render('short', 'short');
+
+        form.validateRecursively();
+
+        expect(window.SvarohJsFormValidator.getAllErrors(form, {})).toEqual({
+            user_password_first: {
+                'form-error-user': [],
+                'form-error-user-password': [],
+                'form-error-user-password-first': ['The password is too short.'],
+                'value-to-duplicates-user_password_first': [],
+            },
+        });
+        expect(document.querySelectorAll('.form-errors li')).toHaveLength(1);
+    });
+
+    test('validates a single input of the pair on its own', () => {
+        render('short', 'short');
+        const input = document.getElementById('user_password_first');
+
+        expect(window.SvarohJsFormValidator.customize(input, 'validate')).toBe(false);
+        expect(input.jsFormValidator.errors['form-error-user-password-first'])
+            .toEqual(['The password is too short.']);
+    });
+
+    test('keeps reporting values that do not match', () => {
+        const form = render('longenough', 'other');
+
+        form.validateRecursively();
+
+        expect(window.SvarohJsFormValidator.getAllErrors(form, {})).toEqual({
+            user_password_first: {
+                'form-error-user': [],
+                'form-error-user-password': [],
+                'form-error-user-password-first': [],
+                'value-to-duplicates-user_password_first': ['The values do not match.'],
+            },
+        });
+    });
+});
