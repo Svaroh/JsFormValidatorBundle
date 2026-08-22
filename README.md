@@ -230,6 +230,7 @@ If your form rendering is customized, start with
 19. [Repeated fields](src/Resources/doc/3_19.md)
 20. [One form rendered several times](src/Resources/doc/3_20.md)
 21. [Validation events](src/Resources/doc/3_21.md)
+22. [File uploads](src/Resources/doc/3_22.md)
 
 ## Development
 

@@ -17,6 +17,7 @@ use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\Validator\Constraint;
+use Symfony\Component\Validator\Constraints\File;
 use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Mapping\ClassMetadataInterface;
 use Symfony\Component\Validator\Mapping\GetterMetadata;
@@ -760,7 +761,12 @@ class JsFormValidatorFactory
                 $item = $this->resolveRangeDateBounds($item);
             }
 
-            $result[get_class($item)][] = $item;
+            // The "maxSize" option of the File constraint is a protected
+            // property behind a magic getter, so the generic object export of
+            // the model cannot see it. Export the options as a plain list
+            $result[get_class($item)][] = $item instanceof File
+                ? array('maxSize' => $item->maxSize) + get_object_vars($item)
+                : $item;
         }
 
         return $result;

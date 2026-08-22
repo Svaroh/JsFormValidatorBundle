@@ -13,6 +13,7 @@ use Symfony\Component\Form\Extension\Core\Type\BirthdayType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
+use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
@@ -628,6 +629,35 @@ class JsFormValidatorFactoryTest extends TestCase
 
         $this->assertFalse($model->children['kept']->trim);
         $this->assertTrue($model->children['trimmed']->trim);
+    }
+
+    public function testFileConstraintExportsItsNormalizedMaxSize()
+    {
+        $factory = $this->createFactory();
+        $formFactory = $this->createFormFactory($factory);
+        $form = $formFactory
+            ->createNamedBuilder('profile', FormType::class)
+            ->add('avatar', FileType::class, array(
+                'constraints' => array(
+                    new Assert\File(maxSize: '2Mi', mimeTypes: array('image/png')),
+                ),
+            ))
+            ->getForm()
+        ;
+
+        $model = $factory->createJsModel($form);
+
+        // "maxSize" is protected behind a magic getter, so it is not part of
+        // the generic public property export of the model
+        $this->assertStringContainsString("'maxSize':2097152", (string) $model);
+        // The suffix of the option decides how the sizes are displayed
+        $this->assertStringContainsString("'binaryFormat':true", (string) $model);
+
+        $options = $model->children['avatar']->data['form']['constraints'][Assert\File::class][0];
+
+        $this->assertSame(2097152, $options['maxSize']);
+        $this->assertTrue($options['binaryFormat']);
+        $this->assertSame(array('image/png'), $options['mimeTypes']);
     }
 
     public function testTransformersOfOtherTypesAreNotGivenNumberParams()
