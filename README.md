@@ -161,6 +161,26 @@ Then include the entry in your template:
 
 Adjust the import path to your application structure.
 
+### JavaScript Namespace
+
+The library registers its constraints and its view transformers in a single
+global object named after the `Svaroh\JsFormValidatorBundle` PHP namespace:
+
+```js
+Svaroh.constraints    // constraints, keyed by class name without the separators
+Svaroh.transformers   // view transformers, keyed the same way
+```
+
+Register your own classes there, as shown in
+[custom constraints](src/Resources/doc/3_7.md) and
+[custom data transformers](src/Resources/doc/3_8.md). The object is created by
+the library, so run your registrations after its script is loaded.
+
+Every bundled constraint and transformer is still exported under its own global
+name, such as `window.SymfonyComponentValidatorConstraintsNotBlank`, and a class
+your application defines as a global is still picked up. Both are deprecated and
+will be dropped in a future release.
+
 ### Render Bundle Config And Form Models
 
 After the scripts are loaded, render the generated config and queued form models:

@@ -18,12 +18,21 @@ const transformerGlobals = [
     namespace + 'ValueToDuplicatesTransformer',
 ];
 
-// parseTransformers() instantiates a transformer as window[className] and skips
-// it without a word when the global is undefined, which is how the localized
-// number types went unvalidated in the first place.
+// parseTransformers() instantiates a transformer as Svaroh.transformers[className]
+// and skips it without a word when the namespace holds no such name, which is how
+// the localized number types went unvalidated in the first place.
 test.each(transformerGlobals)(
-    'window.%s is registered',
+    'Svaroh.transformers.%s is registered',
+    (name) => {
+        expect(typeof window.Svaroh.transformers[name]).toBe('function');
+    },
+);
+
+// The global name of every transformer is kept as a deprecated alias.
+test.each(transformerGlobals)(
+    'window.%s is a deprecated alias of the namespaced transformer',
     (name) => {
         expect(typeof window[name]).toBe('function');
+        expect(window[name]).toBe(window.Svaroh.transformers[name]);
     },
 );
