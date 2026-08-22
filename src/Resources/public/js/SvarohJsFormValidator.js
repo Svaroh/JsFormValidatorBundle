@@ -67,6 +67,10 @@ export function SvarohJsFormElement() {
             return true;
         }
 
+        // The browser is asked first, while its own diagnosis is still
+        // readable: the message of this element is written back into the
+        // "customError" state the browser would otherwise answer with
+        var nativeErrors = SvarohJsFormValidator.validateNative(self);
         var validationErrors = SvarohJsFormValidator.validateElement(self);
         var invalidTargets = [];
         for (var index = 0; index < validationErrors.length; index++) {
@@ -89,6 +93,23 @@ export function SvarohJsFormElement() {
             errorTarget.errors[sourceId].push(validationError.message);
         }
 
+        // A "required" attribute and a NotBlank constraint describe the same
+        // failure, so the browser is only heard when this library found
+        // nothing to say about the element itself
+        if (nativeErrors.length && -1 === invalidTargets.indexOf(self)) {
+            invalidTargets.push(self);
+            if (!self.errors[sourceId]) {
+                self.errors[sourceId] = [];
+            }
+
+            self.errors[sourceId].push(nativeErrors[0].message);
+            validationErrors = validationErrors.concat(nativeErrors);
+        }
+
+        if (-1 === invalidTargets.indexOf(self)) {
+            SvarohJsFormValidator.syncNativeValidity(self);
+        }
+
         for (var i = 0; i < invalidTargets.length; i++) {
             var target = invalidTargets[i];
             var errorPath = SvarohJsFormValidator.getErrorPathElement(target);
@@ -96,6 +117,8 @@ export function SvarohJsFormElement() {
             if (domNode) {
                 errorPath.showErrors.apply(domNode, [target.errors[sourceId], sourceId]);
             }
+
+            SvarohJsFormValidator.syncNativeValidity(target);
         }
 
         return validationErrors.length === 0;
@@ -136,6 +159,8 @@ export function SvarohJsFormElement() {
             if (domNode) {
                 this.showErrors.apply(domNode, [this.errors[sourceId], sourceId]);
             }
+
+            SvarohJsFormValidator.syncNativeValidity(this);
         }
     };
 
@@ -337,6 +362,7 @@ function SvarohJsCustomizeMethods() {
         SvarohJsFormValidator.each(this, function (item) {
             item.jsFormValidator.errors[opts['sourceId']] = opts['errors'];
             item.jsFormValidator.showErrors.apply(item, [opts['errors'], opts['sourceId']]);
+            SvarohJsFormValidator.syncNativeValidity(item.jsFormValidator);
         });
     };
 
@@ -508,10 +534,89 @@ var SvarohJsFormValidator = new function () {
         element.domNode = form;
         this.attachElement(element);
         if (form) {
+            this.disableNativeValidationUi(form);
             this.attachDefaultEvent(element, form);
         }
 
         return element;
+    };
+
+    /**
+     * The HTML5 integration is opt-in: the bundle exports the flag with the
+     * rest of its configuration and the browser only acts on it when the
+     * application turned it on
+     *
+     * @return {boolean}
+     */
+    this.isHtml5Enabled = function () {
+        return true === (this.config && this.config.html5Validation);
+    };
+
+    /**
+     * A browser validates a form interactively before it fires "submit", so a
+     * field it refuses on its own - "required", "type=email", "min", "step" -
+     * stops the event this library listens to and shows a native bubble
+     * instead of the error list. The "novalidate" attribute turns that step
+     * off and leaves the reporting to this library, which surfaces the same
+     * failures itself through validateNative().
+     *
+     * @param {HTMLFormElement} form
+     */
+    this.disableNativeValidationUi = function (form) {
+        if (this.isHtml5Enabled() && typeof form.setAttribute === 'function') {
+            form.setAttribute('novalidate', 'novalidate');
+        }
+    };
+
+    /**
+     * Reads what the browser knows about the element on its own: a "number"
+     * field the user filled with letters, an empty "required" field, a value
+     * outside the "min", "max" or "step" the widget carries. The message this
+     * library wrote is removed first, otherwise the browser would answer with
+     * it instead of its own diagnosis.
+     *
+     * @param {SvarohJsFormElement} element
+     *
+     * @return {Array}
+     */
+    this.validateNative = function (element) {
+        var domNode = element.domNode;
+        if (!this.isHtml5Enabled() || !domNode || typeof domNode.setCustomValidity !== 'function') {
+            return [];
+        }
+
+        domNode.setCustomValidity('');
+        if (!domNode.willValidate || !domNode.validity || domNode.validity.valid) {
+            return [];
+        }
+
+        return [new SvarohJsFormError(domNode.validationMessage || 'This value is not valid.')];
+    };
+
+    /**
+     * Mirrors the errors of the element into the Constraint Validation API, so
+     * that ":invalid" styling, "form.checkValidity()" and any other native
+     * tooling agree with what this library decided. The state is as fresh as
+     * the last validation run of the element, which this bundle performs on
+     * submit and on the events the application asks for.
+     *
+     * @param {SvarohJsFormElement} element
+     */
+    this.syncNativeValidity = function (element) {
+        var domNode = element.domNode;
+        if (!this.isHtml5Enabled() || !domNode || typeof domNode.setCustomValidity !== 'function') {
+            return;
+        }
+
+        var message = '';
+        for (var sourceId in element.errors) {
+            if (element.errors[sourceId].length) {
+                message = String(element.errors[sourceId][0]);
+                break;
+            }
+        }
+
+        domNode.setCustomValidity(message);
     };
 
     /**

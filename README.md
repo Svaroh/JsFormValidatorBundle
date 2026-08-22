@@ -93,6 +93,17 @@ svaroh_js_form_validator:
 Per-form and per-field disabling is documented in
 [Disabling validation](src/Resources/doc/2_1.md).
 
+The browser validates a form on its own before this bundle sees the submit. You
+can opt into letting the bundle own that reporting:
+
+```yaml
+# config/packages/svaroh_js_form_validator.yaml
+svaroh_js_form_validator:
+    html5_validation: true
+```
+
+See [HTML5 validation](src/Resources/doc/3_16.md) for what that changes.
+
 ## UniqueEntity Route
 
 If you use Symfony's Doctrine `UniqueEntity` constraint, import the bundle route:
@@ -210,6 +221,7 @@ If your form rendering is customized, start with
 12. [Run validation on custom event](src/Resources/doc/3_12.md)
 13. [Collections validation](src/Resources/doc/3_13.md)
 14. [Localized numbers](src/Resources/doc/3_14.md)
+15. [HTML5 validation](src/Resources/doc/3_16.md)
 
 ## Development
 

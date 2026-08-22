@@ -151,8 +151,9 @@ class JsFormValidatorFactory
                 }
             }
         }
-        $model          = new JsConfig;
-        $model->routing = $result['routing'];
+        $model                  = new JsConfig;
+        $model->routing         = $result['routing'];
+        $model->html5Validation = !empty($this->config['html5_validation']);
 
         return $model;
     }

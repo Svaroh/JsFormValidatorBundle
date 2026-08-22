@@ -270,6 +270,161 @@ describe('SvarohJsFormValidator submit flow', () => {
     });
 });
 
+// https://github.com/formapro/JsFormValidatorBundle/issues/75 - the browser
+// validates the form on its own before the "submit" event this library listens
+// to, so the two used to report the same form without knowing about each other
+describe('SvarohJsFormValidator HTML5 integration', () => {
+    afterEach(() => {
+        document.body.innerHTML = '';
+        window.SvarohJsFormValidator.config = {};
+        window.SvarohJsFormValidator.forms = {};
+    });
+
+    function enableHtml5() {
+        window.SvarohJsFormValidator.config = { html5Validation: true };
+    }
+
+    /**
+     * Renders a form with a single widget and returns the element of that
+     * widget, initialized the way the rendered model would initialize it.
+     *
+     * @param {String} widget the markup of the input
+     * @param {String} value  the submitted value
+     *
+     * @return {Object} the form and the field elements
+     */
+    function initForm(widget, value) {
+        document.body.innerHTML = '<form name="profile" id="profile">' + widget + '</form>';
+        if (undefined !== value) {
+            document.getElementById('profile_field').value = value;
+        }
+
+        const form = window.SvarohJsFormValidator.initModel({
+            id: 'profile',
+            name: 'profile',
+            type: '',
+            invalidMessage: '',
+            bubbling: false,
+            disabled: false,
+            transformers: [],
+            data: {},
+            children: {
+                field: {
+                    id: 'profile_field',
+                    name: 'field',
+                    type: '',
+                    invalidMessage: '',
+                    bubbling: false,
+                    disabled: false,
+                    transformers: [],
+                    data: {},
+                    children: {},
+                },
+            },
+        });
+
+        return { form, field: form.children.field };
+    }
+
+    function addConstraint(element, messages) {
+        element.data.form = {
+            constraints: [{
+                groups: ['Default'],
+                validate: () => messages(),
+            }],
+            getters: {},
+            groups: ['Default'],
+        };
+    }
+
+    test('marks the initialized form as novalidate so the error list is not replaced by a bubble', () => {
+        enableHtml5();
+        const { form } = initForm('<input id="profile_field" name="profile[field]" required>');
+
+        expect(form.domNode.hasAttribute('novalidate')).toBe(true);
+    });
+
+    test('leaves the form alone while the integration is disabled', () => {
+        const { form, field } = initForm('<input type="email" id="profile_field" name="profile[field]">', 'garbage');
+
+        expect(form.domNode.hasAttribute('novalidate')).toBe(false);
+        expect(field.validate()).toBe(true);
+        expect(field.errors['form-error-profile-field']).toEqual([]);
+        expect(field.domNode.validity.customError).toBe(false);
+    });
+
+    test('reports a value the browser refuses through the error list of the bundle', () => {
+        enableHtml5();
+        const { field } = initForm('<input type="email" id="profile_field" name="profile[field]">', 'garbage');
+
+        expect(field.validate()).toBe(false);
+        expect(field.errors['form-error-profile-field']).toEqual([field.domNode.validationMessage]);
+        expect(field.domNode.previousSibling.className).toBe('form-errors');
+        expect(field.domNode.previousSibling.textContent).not.toBe('');
+    });
+
+    test('reports an empty required field the browser would have blocked the submit for', () => {
+        enableHtml5();
+        const { field } = initForm('<input id="profile_field" name="profile[field]" required>');
+
+        expect(field.validate()).toBe(false);
+        expect(field.errors['form-error-profile-field']).toHaveLength(1);
+    });
+
+    test('keeps the message of the bundle when a constraint describes the same failure', () => {
+        enableHtml5();
+        const { field } = initForm('<input id="profile_field" name="profile[field]" required>');
+        addConstraint(field, () => ['This value should not be blank.']);
+
+        expect(field.validate()).toBe(false);
+        expect(field.errors['form-error-profile-field']).toEqual(['This value should not be blank.']);
+    });
+
+    test('mirrors the errors of the bundle into the Constraint Validation API', () => {
+        enableHtml5();
+        const { form, field } = initForm('<input id="profile_field" name="profile[field]">', 'taken');
+        let message = 'This value is already used.';
+        addConstraint(field, () => (message ? [message] : []));
+
+        expect(field.validate()).toBe(false);
+        expect(field.domNode.validity.customError).toBe(true);
+        expect(field.domNode.validationMessage).toBe('This value is already used.');
+        expect(form.domNode.checkValidity()).toBe(false);
+
+        message = '';
+        expect(field.validate()).toBe(true);
+        expect(field.domNode.validity.customError).toBe(false);
+        expect(form.domNode.checkValidity()).toBe(true);
+    });
+
+    test('mirrors the errors another source pushed onto the element', () => {
+        enableHtml5();
+        const { field } = initForm('<input id="profile_field" name="profile[field]">', 'taken');
+
+        window.SvarohJsFormValidator.customize(field.domNode, 'showErrors', {
+            errors: ['This value is already used.'],
+            sourceId: 'unique-entity-0',
+        });
+
+        expect(field.domNode.validationMessage).toBe('This value is already used.');
+
+        field.clearErrors('unique-entity-0');
+
+        expect(field.domNode.validity.customError).toBe(false);
+    });
+
+    test('does not let a mirrored message hide the diagnosis of the browser', () => {
+        enableHtml5();
+        const { field } = initForm('<input type="email" id="profile_field" name="profile[field]">', 'garbage');
+        const nativeMessage = field.domNode.validationMessage;
+
+        field.domNode.setCustomValidity('A message left by a previous run.');
+
+        expect(field.validate()).toBe(false);
+        expect(field.errors['form-error-profile-field']).toEqual([nativeMessage]);
+    });
+});
+
 describe('SvarohJsFormValidator runtime helpers', () => {
     afterEach(() => {
         document.body.innerHTML = '';
