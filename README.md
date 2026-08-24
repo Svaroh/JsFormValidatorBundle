@@ -6,25 +6,6 @@
 SvarohJsFormValidatorBundle converts Symfony form validation metadata into JavaScript
 validation rules and attaches client-side validators to rendered forms.
 
-## About This Repository
-
-This repository is a new home for the bundle, maintained by Svaroh. It continues
-`formapro/JsFormValidatorBundle`, which remains the home of the
-`fp/jsformvalidator-bundle` Composer package.
-
-`svaroh/jsformvalidator-bundle` is a new Composer package with its own version
-history starting at `1.0`. It is not a `2.0` of `fp/jsformvalidator-bundle`, and
-its version numbers do not continue that package's.
-
-The move renames the project namespace from `Fp`/`fp` to `Svaroh`/`svaroh`. That
-covers the Composer package, PHP namespace, bundle class, DI alias and service
-ids, route names, published asset path, and the JavaScript globals and file
-names, so switching over requires changes in your application.
-
-All further development and fixes land here. `fp/jsformvalidator-bundle` stays
-available and existing installations keep working, but it receives no new fixes
-from the maintainers; pull requests against it are still welcome in
-`formapro/JsFormValidatorBundle` and will be merged there.
 
 ## Status
 
@@ -39,20 +20,8 @@ This branch targets the current PHP/Symfony baseline:
 - PHP and JavaScript coverage thresholds
 - PSR-4 autoloading from `src/`
 
-The old Symfony 2/3 + Assetic + Selenium test application was replaced upstream
-by a newer `Tests/app` fixture. The maintained test commands now cover the PHP
-model/factory/controller core, JavaScript constraints, and a Cypress smoke test
-against the Symfony test application.
-
 For older Symfony applications, use the historical branches of
 [formapro/JsFormValidatorBundle](https://github.com/formapro/JsFormValidatorBundle):
-
-- Symfony 5.4, 6.4, or 7.x: `1.7`
-- Symfony 4: `1.6`
-- Symfony 3.1: `1.5`
-- Symfony 3.0: `1.4`
-- Symfony 2.8 or 2.7: `1.3`
-- Symfony 2.6 or older: `1.2`
 
 ## Installation
 
