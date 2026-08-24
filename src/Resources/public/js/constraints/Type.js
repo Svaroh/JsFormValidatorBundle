@@ -29,7 +29,11 @@ export default function SymfonyComponentValidatorConstraintsType() {
     this.type = '';
 
     this.validate = function(value) {
-        if ('' === value) {
+        // Symfony's TypeValidator returns before any check when the value is
+        // null, leaving an empty field to NotNull and NotBlank. The reverse
+        // transformer of a number, integer, money or percent field turns an
+        // empty input into null, which every type would otherwise reject.
+        if (null === value || '' === value) {
             return [];
         }
 
