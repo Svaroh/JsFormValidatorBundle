@@ -102,7 +102,7 @@ svaroh_js_form_validator:
     html5_validation: true
 ```
 
-See [HTML5 validation](src/Resources/doc/3_16.md) for what that changes.
+See [HTML5 validation](src/Resources/doc/3_15.md) for what that changes.
 
 ## UniqueEntity Route
 
@@ -221,7 +221,7 @@ If your form rendering is customized, start with
 12. [Run validation on custom event](src/Resources/doc/3_12.md)
 13. [Collections validation](src/Resources/doc/3_13.md)
 14. [Localized numbers](src/Resources/doc/3_14.md)
-15. [HTML5 validation](src/Resources/doc/3_16.md)
+15. [HTML5 validation](src/Resources/doc/3_15.md)
 
 ## Development
 

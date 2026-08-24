@@ -23,4 +23,4 @@ class JsConfig extends JsModelAbstract
      * @var bool
      */
     public $html5Validation = false;
-} 
+}

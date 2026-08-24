@@ -413,6 +413,111 @@ describe('SvarohJsFormValidator HTML5 integration', () => {
         expect(field.domNode.validity.customError).toBe(false);
     });
 
+    test('reports a failure the browser diagnosed differently than the constraint did', () => {
+        enableHtml5();
+        const { field } = initForm('<input type="email" id="profile_field" name="profile[field]">', 'garbage');
+        const nativeMessage = field.domNode.validationMessage;
+        addConstraint(field, () => ['This value is too short.']);
+
+        expect(field.validate()).toBe(false);
+        expect(field.errors['form-error-profile-field']).toEqual([
+            'This value is too short.',
+            nativeMessage,
+        ]);
+    });
+
+    test('reports an expanded choice once instead of once per radio', () => {
+        enableHtml5();
+        document.body.innerHTML =
+            '<form name="profile" id="profile"><div id="profile_field">'
+            + '<input type="radio" id="profile_field_0" name="profile[field]" value="a" required>'
+            + '<input type="radio" id="profile_field_1" name="profile[field]" value="b" required>'
+            + '</div></form>';
+
+        const form = window.SvarohJsFormValidator.initModel({
+            id: 'profile', name: 'profile', type: '', invalidMessage: '', bubbling: false,
+            disabled: false, transformers: [], data: {}, children: {
+                field: {
+                    id: 'profile_field', name: 'field', type: '', invalidMessage: '',
+                    bubbling: false, disabled: false, transformers: [], data: {}, children: {
+                        0: {
+                            id: 'profile_field_0', name: '0', type: '', invalidMessage: '',
+                            bubbling: false, disabled: false, transformers: [], data: {}, children: {},
+                        },
+                        1: {
+                            id: 'profile_field_1', name: '1', type: '', invalidMessage: '',
+                            bubbling: false, disabled: false, transformers: [], data: {}, children: {},
+                        },
+                    },
+                },
+            },
+        });
+
+        form.validateRecursively();
+
+        expect(form.isValid()).toBe(false);
+        expect(form.children.field.children[0].errors['form-error-profile-field-0']).toHaveLength(1);
+        expect(form.children.field.children[1].errors['form-error-profile-field-1']).toEqual([]);
+        expect(document.querySelectorAll('ul.form-errors')).toHaveLength(1);
+    });
+
+    test('refuses the submit for a widget whose validation this bundle skips', () => {
+        enableHtml5();
+        const { form, field } = initForm(
+            '<input type="email" id="profile_field" name="profile[field]" required>',
+            'garbage'
+        );
+        window.SvarohJsFormValidator.customize(field.domNode, { disabled: true });
+
+        const event = new window.Event('submit', { cancelable: true, bubbles: true });
+        form.domNode.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(form.isValid()).toBe(false);
+        expect(field.errors['form-error-profile']).toEqual([field.domNode.validationMessage]);
+    });
+
+    test('switches the native ui off when the configuration is rendered after the model', () => {
+        const { form, field } = initForm(
+            '<input type="email" id="profile_field" name="profile[field]">',
+            'garbage'
+        );
+
+        expect(form.domNode.hasAttribute('novalidate')).toBe(false);
+
+        enableHtml5();
+        const event = new window.Event('submit', { cancelable: true, bubbles: true });
+        form.domNode.dispatchEvent(event);
+
+        expect(form.domNode.hasAttribute('novalidate')).toBe(true);
+        expect(event.defaultPrevented).toBe(true);
+        expect(field.errors['form-error-profile-field']).toEqual([field.domNode.validationMessage]);
+    });
+
+    test('mirrors the message of the source that is being rendered', () => {
+        enableHtml5();
+        const { field } = initForm('<input id="profile_field" name="profile[field]">', 'taken');
+        window.SvarohJsFormValidator.customize(field.domNode, 'showErrors', {
+            errors: ['This value is already used.'],
+            sourceId: 'unique-entity-0',
+        });
+        addConstraint(field, () => ['This value should be blank.']);
+
+        expect(field.validate()).toBe(false);
+        expect(field.domNode.validationMessage).toBe('This value should be blank.');
+    });
+
+    test('drops the mirrored state of an element that never collected an error', () => {
+        enableHtml5();
+        const { field } = initForm('<input id="profile_field" name="profile[field]">', 'anything');
+        field.domNode.setCustomValidity('A message left by a previous run.');
+        field.errors = {};
+
+        field.clearErrors();
+
+        expect(field.domNode.validity.customError).toBe(false);
+    });
+
     test('does not let a mirrored message hide the diagnosis of the browser', () => {
         enableHtml5();
         const { field } = initForm('<input type="email" id="profile_field" name="profile[field]">', 'garbage');
