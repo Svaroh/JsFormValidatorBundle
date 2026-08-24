@@ -7,16 +7,23 @@
 export default function SymfonyComponentValidatorConstraintsLessThanOrEqual() {
     this.message = '';
     this.value = null;
+    this.propertyPath = null;
 
-    this.validate = function (value) {
+    /**
+     * @param {*} value
+     * @param {SvarohJsFormElement} element
+     * @param {SvarohJsFormElement} scope
+     */
+    this.validate = function (value, element, scope) {
         var f = SvarohJsFormValidator;
-        if (f.isValueEmty(value) || value <= this.value) {
+        var comparedValue = SvarohJsBaseConstraint.getComparedValue(this, scope);
+        if (undefined === comparedValue || f.isValueEmty(value) || value <= comparedValue) {
             return [];
         } else {
             return [
                 this.message
                     .replace('{{ value }}', SvarohJsBaseConstraint.formatValue(value))
-                    .replace('{{ compared_value }}', SvarohJsBaseConstraint.formatValue(this.value))
+                    .replace('{{ compared_value }}', SvarohJsBaseConstraint.formatValue(comparedValue))
             ];
         }
     }

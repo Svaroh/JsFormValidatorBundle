@@ -52,3 +52,45 @@ test('SymfonyComponentValidatorConstraintsRange.onCreate keeps decimal bounds', 
     expect(constraintsRange.validate(1.2)).toStrictEqual(['min error']);
     expect(constraintsRange.validate(2)).toStrictEqual([]);
 });
+
+describe('SymfonyComponentValidatorConstraintsRange property paths', () => {
+    const createScope = (min, max) => ({
+        children: {
+            floor: {
+                name: 'floor',
+                type: '',
+                transformers: [],
+                children: {},
+                domNode: { tagName: 'input', value: min },
+            },
+            ceiling: {
+                name: 'ceiling',
+                type: '',
+                transformers: [],
+                children: {},
+                domNode: { tagName: 'input', value: max },
+            },
+        },
+    });
+
+    test('reads the bounds from the referenced fields', () => {
+        const constraintsRange = createConstraint();
+        constraintsRange.minPropertyPath = 'floor';
+        constraintsRange.maxPropertyPath = 'ceiling';
+        constraintsRange.onCreate();
+
+        expect(constraintsRange.validate(5, null, createScope('1', '10'))).toStrictEqual([]);
+        expect(constraintsRange.validate(11, null, createScope('1', '10'))).toStrictEqual(['max error']);
+        expect(constraintsRange.validate(0, null, createScope('1', '10'))).toStrictEqual(['min error']);
+    });
+
+    test('leaves a bound unchecked when its path matches no field', () => {
+        const constraintsRange = createConstraint();
+        constraintsRange.minPropertyPath = 'missing_field';
+        constraintsRange.max = 10;
+        constraintsRange.onCreate();
+
+        expect(constraintsRange.validate(0, null, createScope('1', '10'))).toStrictEqual([]);
+        expect(constraintsRange.validate(11, null, createScope('1', '10'))).toStrictEqual(['max error']);
+    });
+});

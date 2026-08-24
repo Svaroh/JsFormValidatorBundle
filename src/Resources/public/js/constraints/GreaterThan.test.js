@@ -19,3 +19,39 @@ test.each([
         expect(constraintsGraterThan.validate(value)).toStrictEqual(expected);
     },
 );
+
+describe('SymfonyComponentValidatorConstraintsGreaterThan.propertyPath', () => {
+    const createScope = (value) => ({
+        children: {
+            start_date: {
+                name: 'start_date',
+                type: '',
+                transformers: [],
+                children: {},
+                domNode: {
+                    tagName: 'input',
+                    value,
+                },
+            },
+        },
+    });
+
+    test('compares with the current value of the referenced field', () => {
+        const constraint = new SymfonyComponentValidatorConstraintsGreaterThan();
+        constraint.message = '{{ value }} is not greater than {{ compared_value }}';
+        constraint.propertyPath = 'start_date';
+
+        expect(constraint.validate('2024-02-01', null, createScope('2024-01-01'))).toStrictEqual([]);
+        expect(constraint.validate('2024-01-01', null, createScope('2024-02-01'))).toStrictEqual([
+            '"2024-01-01" is not greater than "2024-02-01"',
+        ]);
+    });
+
+    test('stays silent when the path matches no field of the form', () => {
+        const constraint = new SymfonyComponentValidatorConstraintsGreaterThan();
+        constraint.message = '{{ value }} is not greater than {{ compared_value }}';
+        constraint.propertyPath = 'missing_field';
+
+        expect(constraint.validate('2024-01-01', null, createScope('2024-02-01'))).toStrictEqual([]);
+    });
+});

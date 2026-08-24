@@ -770,8 +770,8 @@ describe('SvarohJsFormValidator runtime helpers', () => {
         const errors = window.SvarohJsFormValidator.validateElement(element);
 
         expect(parent.groups).toHaveBeenCalled();
-        expect(fieldConstraint.validate).toHaveBeenCalledWith('value', element);
-        expect(getterConstraint.validate).toHaveBeenCalledWith('callback-value', element);
+        expect(fieldConstraint.validate).toHaveBeenCalledWith('value', element, parent);
+        expect(getterConstraint.validate).toHaveBeenCalledWith('callback-value', element, parent);
         expect(errors.map((error) => error.message)).toEqual(['Field error.', 'Getter error.']);
         expect(window.SvarohJsFormValidator.checkValidationGroups(['Other'], fieldConstraint)).toBe(false);
     });
@@ -1248,5 +1248,109 @@ describe('SvarohJsFormValidator model registration', () => {
         expect(() => document.dispatchEvent(new Event('DOMContentLoaded'))).not.toThrow();
         expect(Object.keys(window.SvarohJsFormValidator.forms)).toEqual(['profile']);
         expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(document.getElementById('profile'));
+    });
+});
+
+describe('SvarohJsFormValidator property paths', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '';
+    });
+
+    function createInput(id, value) {
+        const element = new window.SvarohJsFormElement();
+        element.id = id;
+        element.name = id;
+        element.domNode = document.createElement('input');
+        element.domNode.value = value;
+
+        return element;
+    }
+
+    function addChild(parent, name, child) {
+        parent.children[name] = child;
+        child.parent = parent;
+
+        return child;
+    }
+
+    test('resolves a property path against the children of the validated object', () => {
+        const form = new window.SvarohJsFormElement();
+        form.id = 'booking';
+        const start = addChild(form, 'start_date', createInput('booking_start_date', '2024-01-01'));
+        addChild(form, 'end_date', createInput('booking_end_date', '2024-02-01'));
+
+        expect(window.SvarohJsFormValidator.findElementByPropertyPath(form, 'start_date')).toBe(start);
+        expect(window.SvarohJsFormValidator.getPropertyPathValue(form, 'start_date')).toBe('2024-01-01');
+    });
+
+    test('walks nested property paths written with dots or brackets', () => {
+        const form = new window.SvarohJsFormElement();
+        form.id = 'booking';
+        const period = addChild(form, 'period', new window.SvarohJsFormElement());
+        const start = addChild(period, 'start', createInput('booking_period_start', '2024-01-01'));
+
+        expect(window.SvarohJsFormValidator.findElementByPropertyPath(form, 'period.start')).toBe(start);
+        expect(window.SvarohJsFormValidator.findElementByPropertyPath(form, 'period[start]')).toBe(start);
+        expect(window.SvarohJsFormValidator.getPropertyPathValue(form, 'period.start')).toBe('2024-01-01');
+    });
+
+    test('gives up on a property path that matches no field of the form', () => {
+        const form = new window.SvarohJsFormElement();
+        addChild(form, 'end_date', createInput('booking_end_date', '2024-02-01'));
+
+        expect(window.SvarohJsFormValidator.findElementByPropertyPath(form, 'start_date')).toBeNull();
+        expect(window.SvarohJsFormValidator.findElementByPropertyPath(form, '')).toBeNull();
+        expect(window.SvarohJsFormValidator.findElementByPropertyPath(null, 'start_date')).toBeNull();
+        expect(window.SvarohJsFormValidator.getPropertyPathValue(form, 'start_date')).toBeUndefined();
+    });
+
+    test('keeps a referenced value that cannot be reverse transformed out of the way', () => {
+        const form = new window.SvarohJsFormElement();
+        const start = addChild(form, 'start_date', createInput('booking_start_date', 'not a date'));
+        start.transformers = [{
+            reverseTransform: () => {
+                throw new Error('Invalid date.');
+            },
+        }];
+
+        expect(window.SvarohJsFormValidator.getPropertyPathValue(form, 'start_date')).toBeUndefined();
+    });
+
+    test('reads a property path of a class level constraint from the element itself', () => {
+        const form = new window.SvarohJsFormElement();
+        const address = addChild(form, 'address', new window.SvarohJsFormElement());
+
+        expect(window.SvarohJsFormValidator.getValidatedObjectElement(address, 'entity')).toBe(address);
+        expect(window.SvarohJsFormValidator.getValidatedObjectElement(address, 'parent')).toBe(form);
+        expect(window.SvarohJsFormValidator.getValidatedObjectElement(address, 'form')).toBe(form);
+        expect(window.SvarohJsFormValidator.getValidatedObjectElement(form, 'parent')).toBe(form);
+    });
+
+    test('compares a field with the current value of the field its property path points to', () => {
+        const form = new window.SvarohJsFormElement();
+        form.id = 'booking';
+        const start = addChild(form, 'start_date', createInput('booking_start_date', '2024-01-01'));
+        const end = addChild(form, 'end_date', createInput('booking_end_date', '2024-02-01'));
+
+        const constraint = new window.SymfonyComponentValidatorConstraintsGreaterThan();
+        constraint.message = 'End smaller than start';
+        constraint.propertyPath = 'start_date';
+        end.data = {
+            parent: {
+                groups: ['Default'],
+                constraints: [constraint],
+                getters: {},
+            },
+        };
+
+        expect(window.SvarohJsFormValidator.validateElement(end)).toEqual([]);
+
+        // The compared value is read when the field is validated, so typing in
+        // the referenced field changes the outcome
+        start.domNode.value = '2024-03-01';
+
+        expect(
+            window.SvarohJsFormValidator.validateElement(end).map((error) => error.message)
+        ).toEqual(['End smaller than start']);
     });
 });
