@@ -117,12 +117,14 @@ svaroh_js_form_validator:
 
 Make sure your security configuration allows requests to this route.
 
-The endpoint receives the entity class name and the repository method from the
-browser, and answers whether a matching record exists. Treat it as a public
-existence check: restrict it in your firewall, or point
-`svaroh_js_form_validator.routing.check_unique_entity` at your own controller as
-described in [Checking entity uniqueness](src/Resources/doc/3_9.md) when the
-lookup must not be driven by request data.
+The endpoint answers whether a matching record exists, but only for a field
+combination that a `UniqueEntity` constraint on the named entity class actually
+declares; the repository method comes from that constraint too. Everything else
+is refused. For the combinations you did declare unique it is still a public,
+unthrottled existence check, so restrict it in your firewall when that answer is
+sensitive, or point `svaroh_js_form_validator.routing.check_unique_entity` at
+your own controller as described in
+[Checking entity uniqueness](src/Resources/doc/3_9.md).
 
 ## JavaScript Assets
 

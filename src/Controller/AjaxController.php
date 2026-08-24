@@ -3,9 +3,11 @@
 namespace Svaroh\JsFormValidatorBundle\Controller;
 
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\Validator\Mapping\Factory\MetadataFactoryInterface;
 
 /**
  * These actions call from the client side to check some validations on the server side
@@ -16,20 +18,38 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 class AjaxController
 {
     /**
+     * The request never selects the lookup on its own: it may only replay a
+     * UniqueEntity constraint the application already registered
+     */
+    const UNKNOWN_LOOKUP_MESSAGE = 'The requested lookup is not covered by any UniqueEntity constraint.';
+
+    /**
      * @var ManagerRegistry|null
      */
     private $doctrine;
 
     /**
-     * @param ManagerRegistry|null $doctrine
+     * @var MetadataFactoryInterface|null
      */
-    public function __construct(?ManagerRegistry $doctrine = null)
+    private $metadataFactory;
+
+    /**
+     * @param ManagerRegistry|null          $doctrine
+     * @param MetadataFactoryInterface|null $metadataFactory
+     */
+    public function __construct(?ManagerRegistry $doctrine = null, ?MetadataFactoryInterface $metadataFactory = null)
     {
-        $this->doctrine = $doctrine;
+        $this->doctrine        = $doctrine;
+        $this->metadataFactory = $metadataFactory;
     }
 
     /**
      * This is simplified analog for the UniqueEntity validator
+     *
+     * The request carries no authority of its own. It names an entity, a field
+     * combination and a repository method, and the action answers only when the
+     * validation metadata of that entity declares exactly that UniqueEntity
+     * lookup; everything else is a bad request.
      *
      * @param \Symfony\Component\HttpFoundation\Request $request
      *
@@ -39,6 +59,10 @@ class AjaxController
     {
         if (!$this->doctrine) {
             throw new \LogicException('Doctrine is required to use the UniqueEntity JavaScript validator endpoint.');
+        }
+
+        if (!$this->metadataFactory) {
+            throw new \LogicException('The validator is required to use the UniqueEntity JavaScript validator endpoint.');
         }
 
         $data = $request->request->all();
@@ -53,38 +77,122 @@ class AjaxController
         }
 
         $values = $data['data'];
-        $ignoreNull = !empty($data['ignoreNull']);
 
-        foreach ($values as $value) {
+        // An array value would widen the criteria into an additional condition
+        foreach ($values as $field => $value) {
+            if (null !== $value && !is_scalar($value)) {
+                throw new BadRequestHttpException(sprintf(
+                    'The "%s" criterion must be a scalar value.',
+                    is_string($field) ? $field : (string)$field
+                ));
+            }
+        }
+
+        $constraint = $this->findUniqueEntityConstraint(
+            $data['entityName'],
+            array_keys($values),
+            $data['repositoryMethod']
+        );
+
+        if (null === $constraint) {
+            throw new BadRequestHttpException(self::UNKNOWN_LOOKUP_MESSAGE);
+        }
+
+        foreach ($values as $field => $value) {
             // If field(s) has an empty value and it should be ignored
-            if ($ignoreNull && ('' === $value || is_null($value))) {
+            if (('' === $value || is_null($value)) && $this->ignoresNull($constraint, $field)) {
                 // Just return a positive result
                 return new JsonResponse(true);
             }
         }
 
+        $entityName = $constraint->entityClass ? $constraint->entityClass : $data['entityName'];
+
         try {
-            $repository = $this->doctrine->getRepository($data['entityName']);
+            $repository = $this->doctrine->getRepository($entityName);
         } catch (\Throwable $e) {
             throw new BadRequestHttpException(
-                sprintf('The "%s" entity is not managed by Doctrine.', $data['entityName']),
+                sprintf('The "%s" entity is not managed by Doctrine.', $entityName),
                 $e
             );
         }
 
+        // The constraint names the method, but it still has to be a real one:
         // method_exists() ignores the methods a repository answers through
         // __call(), which is_callable() would have accepted
-        if (!$this->isCallableRepositoryMethod($repository, $data['repositoryMethod'])) {
+        if (!$this->isCallableRepositoryMethod($repository, $constraint->repositoryMethod)) {
             throw new BadRequestHttpException(sprintf(
                 'The "%s" repository method is not callable on "%s".',
-                $data['repositoryMethod'],
-                $data['entityName']
+                $constraint->repositoryMethod,
+                $entityName
             ));
         }
 
-        $entity = $repository->{$data['repositoryMethod']}($values);
+        $entity = $repository->{$constraint->repositoryMethod}($values);
 
         return new JsonResponse(empty($entity));
+    }
+
+    /**
+     * Looks up the UniqueEntity constraint the request claims to replay
+     *
+     * The lookup matches on the whole field combination and on the repository
+     * method, so the request can neither reach a field the application did not
+     * declare unique nor pick the method that reads it
+     *
+     * @param string $entityName
+     * @param array  $fields
+     * @param string $repositoryMethod
+     *
+     * @return UniqueEntity|null
+     */
+    private function findUniqueEntityConstraint($entityName, array $fields, $repositoryMethod)
+    {
+        try {
+            $metadata = $this->metadataFactory->getMetadataFor($entityName);
+        } catch (\Throwable $e) {
+            // An unmapped or nonexistent class is answered like any other
+            // lookup the application did not declare
+            return null;
+        }
+
+        sort($fields);
+
+        foreach ($metadata->getConstraints() as $constraint) {
+            if (!$constraint instanceof UniqueEntity || $repositoryMethod !== $constraint->repositoryMethod) {
+                continue;
+            }
+
+            $declaredFields = (array)$constraint->fields;
+            sort($declaredFields);
+
+            if ($declaredFields === $fields) {
+                return $constraint;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether the constraint lets an empty value skip the lookup
+     *
+     * Symfony accepts a boolean or the list of fields the option applies to
+     *
+     * @param UniqueEntity     $constraint
+     * @param string|int|null  $field
+     *
+     * @return bool
+     */
+    private function ignoresNull(UniqueEntity $constraint, $field)
+    {
+        $ignoreNull = $constraint->ignoreNull;
+
+        if (is_bool($ignoreNull)) {
+            return $ignoreNull;
+        }
+
+        return in_array($field, (array)$ignoreNull, true);
     }
 
     /**

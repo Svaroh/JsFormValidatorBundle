@@ -74,8 +74,19 @@ Last verified in the Nix shell on PHP 8.5.6 / Node 24.16.0:
 
 ## Known Design Risks
 
-- `Controller/AjaxController::checkUniqueEntityAction` takes `entityName` and
-  `repositoryMethod` from the request. Input is validated, but the endpoint is
-  still an existence oracle for any entity unless the application secures the
-  route or replaces the controller. Documented in
+- `Controller/AjaxController::checkUniqueEntityAction` no longer trusts the
+  request to select the lookup. The request may only replay a `UniqueEntity`
+  constraint the application registered on the named class: the field
+  combination must match a constraint exactly, and the repository method,
+  `ignoreNull` and `entityClass` are read from that constraint instead of the
+  request. Criteria values must be scalar or null, so an array can no longer
+  widen the query. Doctrine is never reached for an undeclared lookup.
+- What remains, and belongs to the application: for the field combinations the
+  application did itself declare unique, the route is still an unauthenticated
+  existence oracle (`is this email registered?`) and is not rate limited. Secure
+  or throttle the route in the host application. Documented in
   `src/Resources/doc/3_9.md`.
+- A `UniqueEntity` passed inline through a form's `constraints` option is not in
+  the class validation metadata, so the endpoint refuses it. Declare
+  `UniqueEntity` on the entity class, or point the bundle at a custom
+  controller.

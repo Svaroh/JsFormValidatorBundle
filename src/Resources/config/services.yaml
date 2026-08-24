@@ -31,5 +31,6 @@ services:
         public: true
         arguments:
             - '@?doctrine'
+            - '@?validator'
         tags:
             - { name: controller.service_arguments }
