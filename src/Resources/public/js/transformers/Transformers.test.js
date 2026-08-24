@@ -127,4 +127,20 @@ describe('Symfony form data transformers', () => {
             sourceId: 'value-to-duplicates-first',
         });
     });
+
+    test('ValueToDuplicates resolves the repeated value when the first child is not in the model', () => {
+        const transformer = new ValueToDuplicates();
+        transformer.keys = ['first', 'second'];
+        const customize = jest.fn();
+        global.SvarohJsFormValidator = { customize };
+        window.SvarohJsFormValidator = global.SvarohJsFormValidator;
+
+        // The first child is missing when its own validation is disabled, and
+        // there is then nothing to report the mismatch on
+        expect(transformer.reverseTransform({ second: 'secret' }, {
+            invalidMessage: 'Values must match.',
+            children: { second: { id: 'second', domNode: document.createElement('input') } },
+        })).toBe('secret');
+        expect(customize).not.toHaveBeenCalled();
+    });
 });

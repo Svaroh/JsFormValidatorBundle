@@ -18,7 +18,9 @@ use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\MoneyType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
+use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\PercentType;
+use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\TimeType;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
@@ -738,6 +740,102 @@ class JsFormValidatorFactoryTest extends TestCase
         $this->assertSame('not a date at all', $exported->min);
     }
 
+
+    public function testRepeatedTypeMovesPropertyConstraintsToItsFirstChild()
+    {
+        $validator = Validation::createValidatorBuilder()
+            ->enableAttributeMapping()
+            ->getValidator()
+        ;
+        $factory = $this->createFactory($validator);
+        $formFactory = $this->createFormFactory($factory, $validator);
+        $form = $formFactory
+            ->createNamedBuilder('user', FormType::class, new RepeatedUser(), array(
+                'data_class' => RepeatedUser::class,
+            ))
+            ->add('password', RepeatedType::class, array('type' => PasswordType::class))
+            ->getForm()
+        ;
+
+        $model = $factory->createJsModel($form);
+        $repeated = $model->children['password'];
+        $first = $repeated->children['first'];
+
+        // The repeated element owns no input, so keeping the constraints on it
+        // would report every violation a second time
+        $this->assertSame(array(), $repeated->data);
+        $this->assertArrayNotHasKey('parent', $first->data);
+        $this->assertArrayHasKey(Assert\Length::class, $first->data['form']['constraints']);
+        $this->assertSame(6, $first->data['form']['constraints'][Assert\Length::class][0]->min);
+        $this->assertSame(array('Default'), $first->data['form']['groups']);
+        // Symfony maps the violations of a repeated field to its first child
+        $this->assertSame(array(), $repeated->children['second']->data);
+        // The "values do not match" check is driven by the transformer, which
+        // has to stay on the repeated element
+        $this->assertSame(
+            'Symfony\Component\Form\Extension\Core\DataTransformer\ValueToDuplicatesTransformer',
+            $repeated->transformers[0]['name']
+        );
+        $this->assertSame(array('first', 'second'), $repeated->transformers[0]['keys']);
+    }
+
+    public function testRepeatedTypeMergesMovedConstraintsIntoTheConfiguredFirstChild()
+    {
+        $validator = Validation::createValidatorBuilder()
+            ->enableAttributeMapping()
+            ->getValidator()
+        ;
+        $factory = $this->createFactory($validator);
+        $formFactory = $this->createFormFactory($factory, $validator);
+        $form = $formFactory
+            ->createNamedBuilder('user', FormType::class, new RepeatedUser(), array(
+                'data_class' => RepeatedUser::class,
+            ))
+            ->add('password', RepeatedType::class, array(
+                'type' => PasswordType::class,
+                'first_name' => 'plain',
+                'second_name' => 'confirm',
+                'first_options' => array('constraints' => array(new NotBlank())),
+            ))
+            ->getForm()
+        ;
+
+        $model = $factory->createJsModel($form);
+        $repeated = $model->children['password'];
+        $constraints = $repeated->children['plain']->data['form']['constraints'];
+
+        $this->assertSame(array(), $repeated->data);
+        $this->assertArrayHasKey(NotBlank::class, $constraints);
+        $this->assertArrayHasKey(Assert\Length::class, $constraints);
+        $this->assertSame(array('Default'), $repeated->children['plain']->data['form']['groups']);
+        $this->assertSame(array(), $repeated->children['confirm']->data);
+    }
+
+    public function testRepeatedTypeKeepsItsDataWhenTheFirstChildIsNotProcessed()
+    {
+        $validator = Validation::createValidatorBuilder()
+            ->enableAttributeMapping()
+            ->getValidator()
+        ;
+        $factory = $this->createFactory($validator);
+        $formFactory = $this->createFormFactory($factory, $validator);
+        $form = $formFactory
+            ->createNamedBuilder('user', FormType::class, new RepeatedUser(), array(
+                'data_class' => RepeatedUser::class,
+            ))
+            ->add('password', RepeatedType::class, array(
+                'type' => PasswordType::class,
+                'first_options' => array('js_validation' => false),
+            ))
+            ->getForm()
+        ;
+
+        $model = $factory->createJsModel($form);
+        $repeated = $model->children['password'];
+
+        $this->assertArrayNotHasKey('first', $repeated->children);
+        $this->assertArrayHasKey(Assert\Length::class, $repeated->data['parent']['constraints']);
+    }
 }
 
 class UniqueEntityUser
@@ -789,6 +887,12 @@ class ComparedUser
 
     #[Assert\Range(minPropertyPath: 'minGuests', maxPropertyPath: 'maxGuests')]
     public $guests;
+}
+
+class RepeatedUser
+{
+    #[Assert\Length(min: 6, minMessage: 'The password is too short.')]
+    public $password = '';
 }
 
 class TestableJsFormValidatorFactory extends JsFormValidatorFactory

@@ -13,6 +13,7 @@ use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\Validator\Constraint;
@@ -264,6 +265,8 @@ class JsFormValidatorFactory
         $model->data           = $this->getValidationData($form);
         $model->children       = $this->processChildren($form);
 
+        $this->moveRepeatedValidationData($form, $model);
+
         $prototype = $form->getConfig()->getAttribute('prototype');
         if ($prototype) {
             $model->prototype = $this->createJsModel($prototype);
@@ -294,6 +297,54 @@ class JsFormValidatorFactory
         }
 
         return $result;
+    }
+
+    /**
+     * A "repeated" field owns no widget: it holds a single value that
+     * ValueToDuplicatesTransformer spreads over two children, and its row
+     * renders the rows of those children only. The constraints of the
+     * underlying property are collected for the repeated element itself, where
+     * no input can carry them, so they are moved down to the child that
+     * Symfony reports the violations on - RepeatedTypeValidatorExtension
+     * defaults the "error_mapping" option of the type to
+     * array('.' => $options['first_name']).
+     *
+     * They are moved, not copied: leaving them on the repeated element would
+     * report every violation twice, once for the element and once for the
+     * child. They also land in the "form" section, because from now on they
+     * belong to the input itself and not to a property of the parent form.
+     *
+     * @param FormInterface $form
+     * @param JsFormElement $model
+     *
+     * @return void
+     */
+    protected function moveRepeatedValidationData(FormInterface $form, JsFormElement $model)
+    {
+        $config = $form->getConfig();
+        if (empty($model->data) || !($config->getType()->getInnerType() instanceof RepeatedType)) {
+            return;
+        }
+
+        $firstName = $config->getOption('first_name');
+        // The child is missing when it is not processable, e.g. a hidden type
+        // or a field whose validation was explicitly disabled
+        if (!isset($model->children[$firstName])) {
+            return;
+        }
+
+        $child  = $model->children[$firstName];
+        $target = isset($child->data['form'])
+            ? $child->data['form']
+            : array('groups' => $this->getValidationGroups($form));
+
+        foreach ($model->data as $data) {
+            unset($data['groups']);
+            $target = $this->mergeDataRecursive($target, $data);
+        }
+
+        $child->data['form'] = $target;
+        $model->data         = array();
     }
 
     /**
