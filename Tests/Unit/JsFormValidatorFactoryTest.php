@@ -258,6 +258,26 @@ class JsFormValidatorFactoryTest extends TestCase
         $this->assertSame('', $factory->getJsValidatorString());
     }
 
+    public function testRegexMatchOptionIsSerializedIntoTheJsModel()
+    {
+        $factory = $this->createFactory();
+        $formFactory = $this->createFormFactory($factory);
+        $form = $formFactory
+            ->createNamedBuilder('profile', FormType::class)
+            ->add('name', TextType::class, array('constraints' => array(
+                new Assert\Regex(pattern: '/\d/', match: false, message: 'Your name cannot contain a number'),
+            )))
+            ->getForm()
+        ;
+
+        $model = $factory->createJsModel($form);
+        $constraints = $model->children['name']->data['form']['constraints'];
+
+        $this->assertArrayHasKey(Assert\Regex::class, $constraints);
+        $this->assertFalse($constraints[Assert\Regex::class][0]->match);
+        $this->assertStringContainsString("'match':false", $model->toJsString());
+    }
+
     public function testValidationGroupsClosureIsSerializedAsFormId()
     {
         $factory = $this->createFactory();
