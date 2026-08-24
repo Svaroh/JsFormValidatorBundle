@@ -17,6 +17,10 @@ Local path: `/Volumes/SRC/svaroh/JsFormValidatorBundle`
 - History that predates the move lives in `formapro/JsFormValidatorBundle`,
   where `1.7.0-beta1` and `1.8.0` were published from `master`.
 - PR #1 (`rebrand/svaroh-2.0`) carried the rebrand into this repository.
+- The backlog taken over from the upstream issue tracker is merged: localized
+  numbers, the HTML5 integration, the `File` constraint, the validation events,
+  the `Svaroh` JavaScript namespace, and the fixes for the upstream issues 59,
+  61, 67, 72, 80, 81, 87, 90, 120, 126, 135, 136 and 148.
 
 ## CI
 
@@ -34,19 +38,20 @@ Local path: `/Volumes/SRC/svaroh/JsFormValidatorBundle`
   reports as workflow artifacts.
 - Coverage thresholds are enforced by `tools/check-coverage.php`: PHP and
   JavaScript line coverage at least `80%`.
-- No workflow run has been recorded in this repository yet; the first push to
-  `main` after the branch filter fix will be the first real run.
+- The coverage upload step answers `403` until "Code quality" is enabled on the
+  repository, which `fail-on-error: false` keeps a warning; the report artifact
+  is produced either way.
 
 ## Local Validation
 
 Last verified in the Nix shell on PHP 8.5.6 / Node 24.16.0:
 
-- `composer test`: 35 tests, 130 assertions.
+- `composer test`: 72 tests, 238 assertions.
 - `composer phpstan`: no errors.
-- `composer coverage`: PHP line coverage ~98%, threshold `80%`.
-- `npm run test:unit`: Jest 308 tests.
-- `npm run test:coverage`: JavaScript line coverage ~89%, threshold `80%`.
-- `npm test`: the above plus the Cypress e2e suite, 22 tests.
+- `composer coverage`: PHP line coverage ~97%, threshold `80%`.
+- `npm run test:unit`: Jest 608 tests.
+- `npm run test:coverage`: JavaScript line coverage ~95%, threshold `80%`.
+- `npm test`: the above plus the Cypress e2e suite, 24 tests.
 
 ## Nix Development Environment
 
