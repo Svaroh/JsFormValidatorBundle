@@ -1,26 +1,6 @@
 # Agent Notes
 
 Repository: `Svaroh/JsFormValidatorBundle` (default branch: `main`)
-Upstream 1.x repository: `formapro/JsFormValidatorBundle`
-Local path: `/Volumes/SRC/svaroh/JsFormValidatorBundle`
-
-## Current Repository State
-
-- This repository is a new home for the bundle. `formapro/JsFormValidatorBundle`
-  keeps the `fp/jsformvalidator-bundle` Composer package.
-- `svaroh/jsformvalidator-bundle` is a new package versioned from `1.0`; it does
-  not continue the `fp/jsformvalidator-bundle` version numbers. It is not
-  published on Packagist yet, so the README download badge stays broken until it
-  is.
-- The move renames the vendor namespace, bundle class, DI alias, JavaScript
-  globals, and Composer package from `Fp`/`fp` to `Svaroh`/`svaroh`.
-- History that predates the move lives in `formapro/JsFormValidatorBundle`,
-  where `1.7.0-beta1` and `1.8.0` were published from `master`.
-- PR #1 (`rebrand/svaroh-2.0`) carried the rebrand into this repository.
-- The backlog taken over from the upstream issue tracker is merged: localized
-  numbers, the HTML5 integration, the `File` constraint, the validation events,
-  the `Svaroh` JavaScript namespace, and the fixes for the upstream issues 59,
-  61, 67, 72, 80, 81, 87, 90, 120, 126, 135, 136 and 148.
 
 ## CI
 
