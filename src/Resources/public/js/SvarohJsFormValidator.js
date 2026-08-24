@@ -252,11 +252,20 @@ function SvarohJsAjaxRequest() {
             request.open("POST", path, true);
             request.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
             request.onreadystatechange = function () {
-                if (4 == request.readyState && 200 == request.status) {
-                    callback(request.responseText);
-                    self.queue--;
-                    self.checkQueue();
+                if (4 != request.readyState) {
+                    return;
                 }
+
+                if (200 == request.status) {
+                    callback(request.responseText);
+                }
+
+                // The queue drains on every finished request, a refused one
+                // included. A lookup the endpoint does not answer would
+                // otherwise leave the queue up for good, and a submit that
+                // waits for it would never happen
+                self.queue--;
+                self.checkQueue();
             };
 
             request.send(this.serializeData(data, null));
@@ -267,10 +276,16 @@ function SvarohJsAjaxRequest() {
     };
 
     this.checkQueue = function () {
-        if (0 == this.queue) {
-            for (var i in this.callbacks) {
-                this.callbacks[i]();
-            }
+        if (0 != this.queue) {
+            return;
+        }
+
+        // Every callback waits for one drain of the queue; keeping them around
+        // would run the submit of a previous form again on the next drain
+        var callbacks = this.callbacks;
+        this.callbacks = [];
+        for (var i in callbacks) {
+            callbacks[i]();
         }
     };
 

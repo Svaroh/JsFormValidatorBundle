@@ -1104,6 +1104,93 @@ describe('SvarohJsFormValidator runtime helpers', () => {
         expect(callback).toHaveBeenCalledWith('true');
         expect(ajax.queue).toBe(0);
         expect(queueCallback).toHaveBeenCalled();
+        // A callback waits for one drain of the queue only
+        expect(ajax.callbacks).toEqual([]);
+    });
+
+    test('drains the queue when the endpoint refuses the lookup', () => {
+        const ajax = window.SvarohJsFormValidator.ajax;
+        const request = {
+            open: jest.fn(),
+            setRequestHeader: jest.fn(),
+            send: jest.fn(),
+            readyState: 0,
+            status: 0,
+            responseText: '',
+        };
+        ajax.createRequest = jest.fn(() => request);
+        const callback = jest.fn();
+        // The submit of a form that waited for the answer
+        const queueCallback = jest.fn();
+        ajax.callbacks = [queueCallback];
+
+        ajax.sendRequest('/check', { id: 15 }, callback);
+        expect(ajax.queue).toBe(1);
+
+        // A lookup no UniqueEntity constraint declares is answered with a 400
+        request.readyState = 4;
+        request.status = 400;
+        request.responseText = '{"detail":"The requested lookup is not covered."}';
+        request.onreadystatechange();
+
+        expect(callback).not.toHaveBeenCalled();
+        expect(ajax.queue).toBe(0);
+        expect(queueCallback).toHaveBeenCalledTimes(1);
+    });
+
+    test('ignores a request that is not finished yet', () => {
+        const ajax = window.SvarohJsFormValidator.ajax;
+        const request = {
+            open: jest.fn(),
+            setRequestHeader: jest.fn(),
+            send: jest.fn(),
+            readyState: 0,
+            status: 0,
+            responseText: '',
+        };
+        ajax.createRequest = jest.fn(() => request);
+        const callback = jest.fn();
+
+        ajax.sendRequest('/check', { id: 15 }, callback);
+
+        request.readyState = 3;
+        request.status = 200;
+        request.onreadystatechange();
+
+        expect(callback).not.toHaveBeenCalled();
+        expect(ajax.queue).toBe(1);
+    });
+
+    test('runs a queued submit once, no matter how many lookups follow it', () => {
+        const ajax = window.SvarohJsFormValidator.ajax;
+        const createRequest = () => ({
+            open: jest.fn(),
+            setRequestHeader: jest.fn(),
+            send: jest.fn(),
+            readyState: 0,
+            status: 0,
+            responseText: 'true',
+        });
+        const first = createRequest();
+        const second = createRequest();
+        ajax.createRequest = jest.fn(() => first);
+        const queueCallback = jest.fn();
+        ajax.callbacks = [queueCallback];
+
+        ajax.sendRequest('/check', { id: 15 }, jest.fn());
+        first.readyState = 4;
+        first.status = 200;
+        first.onreadystatechange();
+
+        expect(queueCallback).toHaveBeenCalledTimes(1);
+
+        ajax.createRequest = jest.fn(() => second);
+        ajax.sendRequest('/check', { id: 16 }, jest.fn());
+        second.readyState = 4;
+        second.status = 200;
+        second.onreadystatechange();
+
+        expect(queueCallback).toHaveBeenCalledTimes(1);
     });
 });
 
