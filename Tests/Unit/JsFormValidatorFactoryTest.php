@@ -9,7 +9,10 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity as SymfonyUniqueEntity;
 use Symfony\Component\Form\ChoiceList\ArrayChoiceList;
 use Symfony\Component\Form\DataTransformerInterface;
+use Symfony\Component\Form\Extension\Core\Type\BirthdayType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
+use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
@@ -17,6 +20,7 @@ use Symfony\Component\Form\Extension\Core\Type\MoneyType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\PercentType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\TimeType;
 use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
 use Symfony\Component\Form\Forms;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -599,6 +603,141 @@ class JsFormValidatorFactoryTest extends TestCase
         $this->assertArrayNotHasKey('groupingSeparator', $parsed[0]);
     }
 
+    public function testRelativeRangeBoundsOfADateFieldAreResolvedToADate()
+    {
+        $validator = Validation::createValidatorBuilder()
+            ->enableAttributeMapping()
+            ->getValidator()
+        ;
+        $factory = $this->createFactory($validator);
+        $formFactory = $this->createFormFactory($factory, $validator);
+        $form = $formFactory
+            ->createNamedBuilder('profile', FormType::class, new RangeUser(), array(
+                'data_class' => RangeUser::class,
+            ))
+            ->add('birthday', DateType::class)
+            ->getForm()
+        ;
+
+        $model = $factory->createJsModel($form);
+        $constraint = $model->children['birthday']->data['parent']['constraints'][Assert\Range::class][0];
+
+        $this->assertSame(
+            (new \DateTimeImmutable('first day of this month - 14 years UTC'))->format('Y-m-d'),
+            $constraint->min
+        );
+        $this->assertSame((new \DateTimeImmutable('today'))->format('Y-m-d'), $constraint->max);
+    }
+
+    public function testAbsoluteRangeBoundsOfADateFieldAreNormalizedPerType()
+    {
+        $factory = $this->createFactory();
+        $formFactory = $this->createFormFactory($factory);
+        $form = $formFactory
+            ->createNamedBuilder('booking', FormType::class)
+            ->add('day', DateType::class, array(
+                'constraints' => array(new Assert\Range(min: '2017-06-29', max: '2017-07-31')),
+            ))
+            ->add('startsAt', DateTimeType::class, array(
+                'constraints' => array(new Assert\Range(min: '2017-06-29 10:00', max: '2017-06-29 18:00')),
+            ))
+            // BirthdayType is resolved through its DateType parent
+            ->add('born', BirthdayType::class, array(
+                'constraints' => array(new Assert\Range(max: '2017-06-29 18:00')),
+            ))
+            ->getForm()
+        ;
+
+        $model = $factory->createJsModel($form);
+        $day = $model->children['day']->data['form']['constraints'][Assert\Range::class][0];
+        $startsAt = $model->children['startsAt']->data['form']['constraints'][Assert\Range::class][0];
+        $born = $model->children['born']->data['form']['constraints'][Assert\Range::class][0];
+
+        $this->assertSame('2017-06-29', $day->min);
+        $this->assertSame('2017-07-31', $day->max);
+        $this->assertSame('2017-06-29 10:00:00', $startsAt->min);
+        $this->assertSame('2017-06-29 18:00:00', $startsAt->max);
+        $this->assertNull($born->min);
+        $this->assertSame('2017-06-29', $born->max);
+    }
+
+    public function testResolvedRangeBoundsDoNotLeakIntoTheConstraintObject()
+    {
+        $factory = $this->createFactory();
+        $formFactory = $this->createFormFactory($factory);
+        $constraint = new Assert\Range(min: 'today', max: 'today + 1 day');
+        $form = $formFactory
+            ->createNamedBuilder('booking', FormType::class)
+            ->add('day', DateType::class, array('constraints' => array($constraint)))
+            ->getForm()
+        ;
+
+        $exported = $factory
+            ->createJsModel($form)
+            ->children['day']->data['form']['constraints'][Assert\Range::class][0]
+        ;
+
+        $this->assertNotSame($constraint, $exported);
+        $this->assertSame('today', $constraint->min);
+        $this->assertSame('today + 1 day', $constraint->max);
+    }
+
+    public function testRangeBoundsAreKeptForTheFieldsNotComparedAsDates()
+    {
+        $factory = $this->createFactory();
+        $formFactory = $this->createFormFactory($factory);
+        $form = $formFactory
+            ->createNamedBuilder('booking', FormType::class)
+            ->add('amount', NumberType::class, array(
+                'constraints' => array(new Assert\Range(min: 1, max: 5)),
+            ))
+            // The model data is an integer, so Symfony compares it as a number
+            ->add('stamp', DateType::class, array(
+                'input' => 'timestamp',
+                'constraints' => array(new Assert\Range(min: 'today', max: 'today + 1 day')),
+            ))
+            // TimeType is not supported, its bound would be resolved to a
+            // full date while the submitted value carries a time only
+            ->add('startsAt', TimeType::class, array(
+                'constraints' => array(new Assert\Range(min: '10:00', max: '18:00')),
+            ))
+            ->getForm()
+        ;
+
+        $model = $factory->createJsModel($form);
+        $constraints = array();
+        foreach (array('amount', 'stamp', 'startsAt') as $name) {
+            $constraints[$name] = $model->children[$name]->data['form']['constraints'][Assert\Range::class][0];
+        }
+
+        $this->assertSame(1, $constraints['amount']->min);
+        $this->assertSame(5, $constraints['amount']->max);
+        $this->assertSame('today', $constraints['stamp']->min);
+        $this->assertSame('today + 1 day', $constraints['stamp']->max);
+        $this->assertSame('10:00', $constraints['startsAt']->min);
+        $this->assertSame('18:00', $constraints['startsAt']->max);
+    }
+
+    public function testAnUnparsableRangeBoundIsExportedAsItIs()
+    {
+        $factory = $this->createFactory();
+        $formFactory = $this->createFormFactory($factory);
+        $form = $formFactory
+            ->createNamedBuilder('booking', FormType::class)
+            ->add('day', DateType::class, array(
+                'constraints' => array(new Assert\Range(min: 'not a date at all')),
+            ))
+            ->getForm()
+        ;
+
+        $exported = $factory
+            ->createJsModel($form)
+            ->children['day']->data['form']['constraints'][Assert\Range::class][0]
+        ;
+
+        $this->assertSame('not a date at all', $exported->min);
+    }
+
 }
 
 class UniqueEntityUser
@@ -617,6 +756,12 @@ class UniqueEntityUser
     {
         return $this->id;
     }
+}
+
+class RangeUser
+{
+    #[Assert\Range(min: 'first day of this month - 14 years UTC', max: 'today')]
+    public $birthday;
 }
 
 class MetadataUser

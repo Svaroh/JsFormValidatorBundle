@@ -10,10 +10,13 @@ use Symfony\Component\Form\DataTransformerInterface;
 use Symfony\Component\Form\Extension\Core\DataTransformer\NumberToLocalizedStringTransformer;
 use Symfony\Component\Form\Extension\Core\DataTransformer\PercentToLocalizedStringTransformer;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
+use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\Validator\Constraint;
+use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Mapping\ClassMetadataInterface;
 use Symfony\Component\Validator\Mapping\GetterMetadata;
 use Symfony\Component\Validator\Mapping\MetadataInterface;
@@ -673,10 +676,116 @@ class JsFormValidatorFactory
                 );
             }
 
+            if ($item instanceof Range) {
+                $item = $this->resolveRangeDateBounds($item);
+            }
+
             $result[get_class($item)][] = $item;
         }
 
         return $result;
+    }
+
+    /**
+     * When the validated value is a \DateTimeInterface, Symfony's RangeValidator
+     * converts a string bound to a date, which accepts every relative format the
+     * PHP parser knows ("today", "first day of this month - 14 years UTC").
+     * That parser cannot be reproduced in a browser, so the bound is resolved
+     * here and exported as a concrete date string the JavaScript side compares
+     * as a date. A relative bound is therefore frozen at the moment the form is
+     * rendered.
+     *
+     * @param Range $constraint
+     *
+     * @return Range
+     */
+    protected function resolveRangeDateBounds(Range $constraint)
+    {
+        if (null === $this->currentElement) {
+            return $constraint;
+        }
+
+        $format = $this->getDateBoundFormat($this->currentElement);
+        if (null === $format) {
+            return $constraint;
+        }
+
+        $min = $this->resolveDateBound($constraint->min, $format);
+        $max = $this->resolveDateBound($constraint->max, $format);
+
+        if ($min === $constraint->min && $max === $constraint->max) {
+            return $constraint;
+        }
+
+        // The constraint object belongs to the shared class metadata, so the
+        // resolved bounds must not leak into the server side validation
+        $constraint      = clone $constraint;
+        $constraint->min = $min;
+        $constraint->max = $max;
+
+        return $constraint;
+    }
+
+    /**
+     * Returns the date format the given element exports its bounds in, or null
+     * when its value is not compared as a date. Only the types whose value
+     * reaches JavaScript as an ISO date string are supported: TimeType is not,
+     * because Symfony compares its value against a bound resolved to the
+     * current day, and neither is an element whose "input" option makes the
+     * model data a string, a timestamp or an array.
+     *
+     * @param FormInterface $form
+     *
+     * @return string|null
+     */
+    protected function getDateBoundFormat(FormInterface $form)
+    {
+        $config = $form->getConfig();
+        $input  = $config->getOption('input');
+
+        if (!in_array($input, array('datetime', 'datetime_immutable', 'date_point'), true)) {
+            return null;
+        }
+
+        // BirthdayType and the custom types are resolved through their parents
+        for ($type = $config->getType(); null !== $type; $type = $type->getParent()) {
+            $innerType = $type->getInnerType();
+
+            if ($innerType instanceof DateTimeType) {
+                return 'Y-m-d H:i:s';
+            }
+            if ($innerType instanceof DateType) {
+                return 'Y-m-d';
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Converts a single string bound to a date, non string bounds are kept as
+     * they are because Symfony compares them as numbers
+     *
+     * @param mixed  $bound
+     * @param string $format
+     *
+     * @return mixed
+     */
+    protected function resolveDateBound($bound, $format)
+    {
+        if (!is_string($bound) || '' === $bound) {
+            return $bound;
+        }
+
+        try {
+            $date = new \DateTimeImmutable($bound);
+        } catch (\Exception $e) {
+            // Symfony throws a ConstraintDefinitionException for such a bound,
+            // let the server side report it instead of breaking the rendering
+            return $bound;
+        }
+
+        return $date->format($format);
     }
 
     public function getJsConfigString()
