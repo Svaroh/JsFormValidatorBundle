@@ -1,13 +1,34 @@
-import './ArrayToParts.js';
-import './BooleanToString.js';
-import './ChoicesToBooleanArray.js';
-import './ChoicesToValues.js';
-import './ChoiceToBooleanArray.js';
-import './ChoiceToValue.js';
-import './DataTransformerChain.js';
-import './DateTimeToArray.js';
-import './IntegerToLocalizedString.js';
-import './MoneyToLocalizedString.js';
-import './NumberToLocalizedString.js';
-import './PercentToLocalizedString.js';
-import './ValueToDuplicates.js';
+import Svaroh from '../namespace.js';
+
+import SymfonyComponentFormExtensionCoreDataTransformerArrayToPartsTransformer from './ArrayToParts.js';
+import SymfonyComponentFormExtensionCoreDataTransformerBooleanToStringTransformer from './BooleanToString.js';
+import SymfonyComponentFormExtensionCoreDataTransformerChoicesToBooleanArrayTransformer from './ChoicesToBooleanArray.js';
+import SymfonyComponentFormExtensionCoreDataTransformerChoicesToValuesTransformer from './ChoicesToValues.js';
+import SymfonyComponentFormExtensionCoreDataTransformerChoiceToBooleanArrayTransformer from './ChoiceToBooleanArray.js';
+import SymfonyComponentFormExtensionCoreDataTransformerChoiceToValueTransformer from './ChoiceToValue.js';
+import SymfonyComponentFormExtensionCoreDataTransformerDataTransformerChain from './DataTransformerChain.js';
+import SymfonyComponentFormExtensionCoreDataTransformerDateTimeToArrayTransformer from './DateTimeToArray.js';
+import SymfonyComponentFormExtensionCoreDataTransformerIntegerToLocalizedStringTransformer from './IntegerToLocalizedString.js';
+import SymfonyComponentFormExtensionCoreDataTransformerMoneyToLocalizedStringTransformer from './MoneyToLocalizedString.js';
+import SymfonyComponentFormExtensionCoreDataTransformerNumberToLocalizedStringTransformer from './NumberToLocalizedString.js';
+import SymfonyComponentFormExtensionCoreDataTransformerPercentToLocalizedStringTransformer from './PercentToLocalizedString.js';
+import SymfonyComponentFormExtensionCoreDataTransformerValueToDuplicatesTransformer from './ValueToDuplicates.js';
+
+// The transformers are keyed by the name the PHP side serialises them under:
+// their class name with the namespace separators removed. Every module also
+// still assigns that name on "window" as a deprecated alias.
+Object.assign(Svaroh.transformers, {
+    SymfonyComponentFormExtensionCoreDataTransformerArrayToPartsTransformer,
+    SymfonyComponentFormExtensionCoreDataTransformerBooleanToStringTransformer,
+    SymfonyComponentFormExtensionCoreDataTransformerChoicesToBooleanArrayTransformer,
+    SymfonyComponentFormExtensionCoreDataTransformerChoicesToValuesTransformer,
+    SymfonyComponentFormExtensionCoreDataTransformerChoiceToBooleanArrayTransformer,
+    SymfonyComponentFormExtensionCoreDataTransformerChoiceToValueTransformer,
+    SymfonyComponentFormExtensionCoreDataTransformerDataTransformerChain,
+    SymfonyComponentFormExtensionCoreDataTransformerDateTimeToArrayTransformer,
+    SymfonyComponentFormExtensionCoreDataTransformerIntegerToLocalizedStringTransformer,
+    SymfonyComponentFormExtensionCoreDataTransformerMoneyToLocalizedStringTransformer,
+    SymfonyComponentFormExtensionCoreDataTransformerNumberToLocalizedStringTransformer,
+    SymfonyComponentFormExtensionCoreDataTransformerPercentToLocalizedStringTransformer,
+    SymfonyComponentFormExtensionCoreDataTransformerValueToDuplicatesTransformer,
+});

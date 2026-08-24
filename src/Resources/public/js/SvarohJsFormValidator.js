@@ -1,3 +1,4 @@
+import Svaroh from './namespace.js';
 import './constraints';
 import './transformers';
 
@@ -1279,16 +1280,40 @@ var SvarohJsFormValidator = new function () {
     };
 
     /**
+     * Resolves the constraint or the transformer the PHP side refers to by its
+     * class name with the namespace separators removed.
+     *
+     * The classes shipped by the bundle are registered in the Svaroh namespace.
+     * The ones an application defines for its own constraints and transformers
+     * are looked up in the global scope as before, see doc/3_7.md and
+     * doc/3_8.md, so that a global keeps working when the namespace holds no
+     * class of that name.
+     *
+     * @param {Object} registry
+     * @param {String} className
+     *
+     * @returns {Function|undefined}
+     */
+    this.resolveClass = function (registry, className) {
+        if (Object.prototype.hasOwnProperty.call(registry, className)) {
+            return registry[className];
+        }
+
+        return window[className];
+    };
+
+    /**
      * @param {Object} list
      */
     this.parseConstraints = function (list) {
         var constraints = [];
         for (var name in list) {
             var className = name.replace(/\\/g, '');
-            if (undefined !== window[className]) {
+            var constraintClass = this.resolveClass(Svaroh.constraints, className);
+            if (undefined !== constraintClass) {
                 var i = list[name].length;
                 while (i--) {
-                    var constraint = new window[className]();
+                    var constraint = new constraintClass();
                     for (var param in list[name][i]) {
                         constraint[param] = list[name][i][param];
                     }
@@ -1314,8 +1339,9 @@ var SvarohJsFormValidator = new function () {
         var i = list.length;
         while (i--) {
             var className = String(list[i]['name']).replace(/\\/g, '');
-            if (undefined !== window[className]) {
-                var transformer = new window[className]();
+            var transformerClass = this.resolveClass(Svaroh.transformers, className);
+            if (undefined !== transformerClass) {
+                var transformer = new transformerClass();
                 for (var propName in list[i]) {
                     transformer[propName] = list[i][propName];
                 }
