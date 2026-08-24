@@ -1161,18 +1161,37 @@ var SvarohJsFormValidator = new function () {
     };
 
     /**
+     * Find a rendered DOM node that represents the given element
+     *
+     * When the element itself is not rendered, its descendants are used
+     * instead. All the descendants that are rendered have to belong to the
+     * same form, otherwise the element is treated as not rendered at all, so
+     * that a single id or name collision cannot attach a whole model to a
+     * foreign form
+     *
      * @param {SvarohJsFormElement} element
      *
      * @return {HTMLElement|null}
      */
     this.findRealChildElement = function (element) {
-        var child = element.domNode;
-        if (!child) {
-            for (var childName in element.children) {
-                child = element.children[childName].domNode;
-                if (child) {
-                    break;
-                }
+        if (element.domNode) {
+            return element.domNode;
+        }
+
+        var child = null;
+        var form = null;
+        for (var childName in element.children) {
+            var childNode = this.findRealChildElement(element.children[childName]);
+            if (!childNode) {
+                continue;
+            }
+
+            var childForm = this.findParentForm(childNode);
+            if (!child) {
+                child = childNode;
+                form = childForm;
+            } else if (childForm !== form) {
+                return null;
             }
         }
 

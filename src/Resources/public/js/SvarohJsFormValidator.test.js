@@ -640,6 +640,20 @@ describe('SvarohJsFormValidator HTML5 integration', () => {
 });
 
 describe('SvarohJsFormValidator runtime helpers', () => {
+    function buildModel(id, name, children) {
+        return {
+            id,
+            name,
+            type: '',
+            invalidMessage: '',
+            bubbling: false,
+            disabled: false,
+            transformers: [],
+            data: {},
+            children: children || [],
+        };
+    }
+
     afterEach(() => {
         document.body.innerHTML = '';
         window.SvarohJsFormValidator.forms = {};
@@ -896,6 +910,52 @@ describe('SvarohJsFormValidator runtime helpers', () => {
         expect(window.SvarohJsFormValidator.findParentForm(named)).toBe(formElement.domNode);
         expect(window.SvarohJsFormValidator.findParentForm(document.createTextNode('orphan'))).toBeNull();
         expect(window.SvarohJsFormValidator.findRealChildElement({ domNode: null, children: { email: child } })).toBe(named);
+    });
+
+    test('ignores a not rendered element whose children belong to different forms', () => {
+        document.body.innerHTML = '<form id="login"><input id="signup_email" name="signup[email]"></form>'
+            + '<form id="newsletter"><input id="signup_phone" name="signup[phone]"></form>';
+
+        const element = window.SvarohJsFormValidator.createElement(buildModel('signup', 'signup', {
+            email: buildModel('signup_email', 'signup[email]'),
+            phone: buildModel('signup_phone', 'signup[phone]'),
+        }));
+
+        expect(element.domNode).toBeNull();
+        expect(window.SvarohJsFormValidator.findRealChildElement(element)).toBeNull();
+        expect(window.SvarohJsFormValidator.findFormElement(element)).toBeNull();
+    });
+
+    test('keeps resolving a not rendered element through a single form, even a deep child', () => {
+        document.body.innerHTML = '<form id="profile"><fieldset>'
+            + '<input id="contact_address_city" name="contact[address][city]">'
+            + '<input id="contact_email" name="contact[email]">'
+            + '</fieldset></form>';
+
+        const element = window.SvarohJsFormValidator.createElement(buildModel('contact', 'contact', {
+            address: buildModel('contact_address', 'contact[address]', {
+                city: buildModel('contact_address_city', 'contact[address][city]'),
+            }),
+            email: buildModel('contact_email', 'contact[email]'),
+        }));
+
+        expect(element.domNode).toBeNull();
+        expect(window.SvarohJsFormValidator.findRealChildElement(element))
+            .toBe(document.getElementById('contact_address_city'));
+        expect(window.SvarohJsFormValidator.findFormElement(element)).toBe(document.getElementById('profile'));
+    });
+
+    test('still attaches a not rendered element when only one of its children is rendered', () => {
+        // The agreement check needs at least two rendered children to spot a
+        // collision, so a lone matching child keeps the previous behaviour
+        document.body.innerHTML = '<form id="login"><input id="signup_email" name="signup[email]"></form>';
+
+        const element = window.SvarohJsFormValidator.createElement(buildModel('signup', 'signup', {
+            email: buildModel('signup_email', 'signup[email]'),
+            phone: buildModel('signup_phone', 'signup[phone]'),
+        }));
+
+        expect(window.SvarohJsFormValidator.findFormElement(element)).toBe(document.getElementById('login'));
     });
 
     test('renders, clears, and bubbles errors through DOM helpers', () => {
