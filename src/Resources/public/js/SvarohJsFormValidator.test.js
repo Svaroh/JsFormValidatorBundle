@@ -819,6 +819,41 @@ describe('SvarohJsFormValidator runtime helpers', () => {
         expect(window.SvarohJsFormValidator.findErrorDomNode(root)).toBeNull();
     });
 
+    test('bubbles an error to the closest non-bubbling ancestor instead of the form root', () => {
+        const buildElement = function (id, parent, bubbling) {
+            const element = new window.SvarohJsFormElement();
+            element.id = id;
+            element.bubbling = bubbling;
+            if (parent) {
+                element.parent = parent;
+                parent.children[id] = element;
+            }
+
+            return element;
+        };
+
+        // form > materiales (collection) > 0 (item, error_bubbling: false)
+        //                                    > material  (error_bubbling: true)
+        //                                    > cantidad  (error_bubbling: true)
+        const form = buildElement('form', null, false);
+        const collection = buildElement('materiales', form, false);
+        const firstItem = buildElement('0', collection, false);
+        const secondItem = buildElement('1', collection, false);
+        const material = buildElement('material', firstItem, true);
+        const cantidad = buildElement('cantidad', secondItem, true);
+
+        expect(window.SvarohJsFormValidator.getErrorPathElement(material)).toBe(firstItem);
+        expect(window.SvarohJsFormValidator.getErrorPathElement(cantidad)).toBe(secondItem);
+
+        // A whole bubbling chain keeps climbing until it reaches a non-bubbling ancestor
+        firstItem.bubbling = true;
+        expect(window.SvarohJsFormValidator.getErrorPathElement(material)).toBe(collection);
+
+        // A bubbling element without a parent has nowhere to bubble to
+        const orphan = buildElement('orphan', null, true);
+        expect(window.SvarohJsFormValidator.getErrorPathElement(orphan)).toBe(orphan);
+    });
+
     test('collects nested errors and utility lengths', () => {
         const root = new window.SvarohJsFormElement();
         root.id = 'root';
