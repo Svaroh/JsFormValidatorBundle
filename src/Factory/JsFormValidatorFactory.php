@@ -17,8 +17,12 @@ use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Symfony\Component\Validator\Constraint;
+use Symfony\Component\Validator\Constraints\Choice;
+use Symfony\Component\Validator\Constraints\Count;
 use Symfony\Component\Validator\Constraints\File;
+use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\Range;
+use Symfony\Component\Validator\Constraints\WordCount;
 use Symfony\Component\Validator\Mapping\ClassMetadataInterface;
 use Symfony\Component\Validator\Mapping\GetterMetadata;
 use Symfony\Component\Validator\Mapping\MetadataInterface;
@@ -33,6 +37,24 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
  */
 class JsFormValidatorFactory
 {
+    /**
+     * The option a pluralized message picks its form by, per constraint and per
+     * message option. These mirror the setPlural() calls in Symfony's own
+     * validators, so the browser is told the same form the server would have
+     * shown for the same limit.
+     *
+     * A message option that is not listed here and does not follow the
+     * "<option>Message" naming convention is translated without a count, which
+     * is what the library did before.
+     */
+    protected const PLURAL_COUNT_OPTIONS = array(
+        Choice::class => array('minMessage' => 'min', 'maxMessage' => 'max'),
+        Count::class => array('minMessage' => 'min', 'maxMessage' => 'max', 'exactMessage' => 'min'),
+        Length::class => array('minMessage' => 'min', 'maxMessage' => 'max', 'exactMessage' => 'min'),
+        File::class => array('filenameTooLongMessage' => 'filenameMaxLength'),
+        WordCount::class => array('minMessage' => 'min', 'maxMessage' => 'max'),
+    );
+
     /**
      * @var ValidatorInterface
      */
@@ -105,14 +127,82 @@ class JsFormValidatorFactory
     /**
      * Translate a single message
      *
-     * @param string $message
+     * A pluralized message carries every form of the translation in one string,
+     * separated by "|", and which of them applies depends on the locale: two
+     * forms in English, three in Ukrainian, six in Arabic. Given the number the
+     * message speaks about, the translator picks the form for the current
+     * locale here, so the browser receives the one form it has to show.
+     *
+     * @param string   $message
+     * @param int|null $plural  The number the message is pluralized by, if any
      *
      * @return string
-     * @codeCoverageIgnore
      */
-    protected function translateMessage($message, ?array $parameters = null)
+    protected function translateMessage($message, ?array $parameters = null, $plural = null)
     {
-        return $this->translator->trans($message, $parameters ?? array(), $this->transDomain);
+        $parameters = $parameters ?? array();
+
+        if (null !== $plural) {
+            try {
+                return $this->translator->trans(
+                    $message,
+                    array('%count%' => $plural) + $parameters,
+                    $this->transDomain
+                );
+            } catch (\InvalidArgumentException $e) {
+                // The translation offers fewer forms than the locale needs, so
+                // no form can be chosen. Fall through and hand the whole
+                // message to the browser, as this library did before, rather
+                // than break the rendering of the form over a translation.
+            }
+        }
+
+        return $this->translator->trans($message, $parameters, $this->transDomain);
+    }
+
+    /**
+     * The number a pluralized message option picks its form by, or null when the
+     * constraint does not pluralize that message.
+     *
+     * Constraints of Symfony's own are listed in PLURAL_COUNT_OPTIONS. Anything
+     * else is matched by the naming convention those constraints follow, where
+     * "minMessage" is pluralized by the "min" option, so a custom constraint
+     * that keeps the convention is covered without being listed.
+     *
+     * @param object $constraint
+     * @param string $messageOption
+     *
+     * @return int|null
+     */
+    protected function getPluralCount($constraint, $messageOption)
+    {
+        $countOption = null;
+
+        foreach (static::PLURAL_COUNT_OPTIONS as $class => $options) {
+            if ($constraint instanceof $class && isset($options[$messageOption])) {
+                $countOption = $options[$messageOption];
+                break;
+            }
+        }
+
+        if (null === $countOption) {
+            if (!preg_match('/^(?<option>.+)Message$/', $messageOption, $matches)) {
+                return null;
+            }
+
+            $countOption = $matches['option'];
+        }
+
+        // get_object_vars() is called from outside the constraint, so it sees
+        // the public options only, which is what a constraint declares its
+        // limits as. An option left uninitialized is absent rather than null.
+        $options = get_object_vars($constraint);
+
+        if (!isset($options[$countOption]) || !is_numeric($options[$countOption])) {
+            return null;
+        }
+
+        return (int) $options[$countOption];
     }
 
     /**
@@ -745,7 +835,11 @@ class JsFormValidatorFactory
             // Translate messages if need and add to result
             foreach ($item as $propName => $propValue) {
                 if (false !== strpos(strtolower($propName), 'message')) {
-                    $item->{$propName} = $this->translateMessage($propValue);
+                    $item->{$propName} = $this->translateMessage(
+                        $propValue,
+                        null,
+                        $this->getPluralCount($item, $propName)
+                    );
                 }
             }
 
