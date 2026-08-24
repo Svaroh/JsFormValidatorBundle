@@ -190,6 +190,115 @@ describe('SvarohJsFormValidator error mapping', () => {
     });
 });
 
+describe('SvarohJsFormValidator recursive validation', () => {
+    function createElement(id, name) {
+        const element = new window.SvarohJsFormElement();
+        element.id = id;
+        element.name = name || id;
+        element.domNode = document.createElement('input');
+        element.showErrors = jest.fn();
+
+        return element;
+    }
+
+    function addChild(parent, name, child) {
+        parent.children[name] = child;
+        child.parent = parent;
+
+        return child;
+    }
+
+    function addConstraint(element, validate) {
+        element.data.form = {
+            constraints: [{
+                groups: ['Default'],
+                validate,
+            }],
+            getters: {},
+            groups: ['Default'],
+        };
+
+        return element;
+    }
+
+    test('returns true when the element and all its children are valid', () => {
+        const form = createElement('user');
+        const email = addChild(form, 'email', createElement('user_email'));
+        addChild(email, 'first', createElement('user_email_first'));
+        addConstraint(form, () => []);
+        addConstraint(email, () => []);
+
+        expect(form.validateRecursively()).toBe(true);
+    });
+
+    test('returns false when a nested child is invalid', () => {
+        const form = createElement('user');
+        const address = addChild(form, 'address', createElement('user_address'));
+        const street = addChild(address, 'street', createElement('user_address_street'));
+        addConstraint(street, () => ['Street is required.']);
+
+        expect(form.validateRecursively()).toBe(false);
+        expect(street.errors['form-error-user-address-street']).toEqual(['Street is required.']);
+    });
+
+    test('returns false when the element itself is invalid but its children are valid', () => {
+        const form = createElement('user');
+        const email = addChild(form, 'email', createElement('user_email'));
+        addConstraint(form, () => ['Form is invalid.']);
+        addConstraint(email, () => []);
+
+        expect(form.validateRecursively()).toBe(false);
+    });
+
+    test('validates every child even after an earlier sibling has failed', () => {
+        const form = createElement('user');
+        const email = addChild(form, 'email', createElement('user_email'));
+        const street = addChild(form, 'street', createElement('user_street'));
+        const zip = addChild(street, 'zip', createElement('user_street_zip'));
+        const emailValidate = jest.fn(() => ['Email is invalid.']);
+        const streetValidate = jest.fn(() => ['Street is required.']);
+        const zipValidate = jest.fn(() => ['Zip is required.']);
+        addConstraint(email, emailValidate);
+        addConstraint(street, streetValidate);
+        addConstraint(zip, zipValidate);
+
+        expect(form.validateRecursively()).toBe(false);
+
+        expect(emailValidate).toHaveBeenCalled();
+        expect(streetValidate).toHaveBeenCalled();
+        expect(zipValidate).toHaveBeenCalled();
+        expect(street.showErrors).toHaveBeenLastCalledWith(
+            ['Street is required.'],
+            'form-error-user-street'
+        );
+        expect(zip.showErrors).toHaveBeenLastCalledWith(
+            ['Zip is required.'],
+            'form-error-user-street-zip'
+        );
+    });
+
+    test('reports the recursive result through the public validate method', () => {
+        const form = createElement('user');
+        const email = addChild(form, 'email', createElement('user_email'));
+        addConstraint(email, () => ['Email is invalid.']);
+        form.domNode.jsFormValidator = form;
+
+        expect(window.SvarohJsFormValidator.customize(
+            form.domNode,
+            'validate',
+            { recursive: true, findUniqueConstraint: false }
+        )).toBe(false);
+
+        addConstraint(email, () => []);
+
+        expect(window.SvarohJsFormValidator.customize(
+            form.domNode,
+            'validate',
+            { recursive: true, findUniqueConstraint: false }
+        )).toBe(true);
+    });
+});
+
 describe('SvarohJsFormValidator submit flow', () => {
     afterEach(() => {
         window.SvarohJsFormValidator.ajax.queue = 0;

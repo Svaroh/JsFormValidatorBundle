@@ -135,11 +135,17 @@ export function SvarohJsFormElement() {
     };
 
     this.validateRecursively = function () {
-        this.validate();
+        var isValid = this.validate();
 
+        // Every child is validated, even after a failure, so that all the
+        // errors of the subtree are collected and displayed at once.
         for (var childName in this.children) {
-            this.children[childName].validateRecursively();
+            if (!this.children[childName].validateRecursively()) {
+                isValid = false;
+            }
         }
+
+        return isValid;
     };
 
     this.isValid = function () {
