@@ -1106,3 +1106,60 @@ describe('SvarohJsFormValidator runtime helpers', () => {
         expect(queueCallback).toHaveBeenCalled();
     });
 });
+
+describe('SvarohJsFormValidator model registration', () => {
+    afterEach(() => {
+        document.body.innerHTML = '';
+        window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.constraintsCounter = 0;
+    });
+
+    function buildModel(id, name, children) {
+        return {
+            id: id,
+            name: name,
+            type: '',
+            invalidMessage: '',
+            bubbling: false,
+            disabled: false,
+            transformers: [],
+            data: {},
+            children: children === undefined ? [] : children,
+        };
+    }
+
+    test('skips a model whose form is not rendered on the current page', () => {
+        document.body.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+        const missing = buildModel('ghost', 'ghost');
+        const rendered = buildModel('profile', 'profile', {
+            email: buildModel('profile_email', 'profile[email]'),
+        });
+
+        // Both models are printed into the same script tag, the one without a
+        // DOM node used to throw and take every model behind it down with it
+        expect(() => {
+            window.SvarohJsFormValidator.addModel(missing, false);
+            window.SvarohJsFormValidator.addModel(rendered, false);
+        }).not.toThrow();
+
+        expect(window.SvarohJsFormValidator.initModel(missing)).toBeNull();
+        expect(Object.keys(window.SvarohJsFormValidator.forms)).toEqual(['profile']);
+        expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(document.getElementById('profile'));
+        expect(window.SvarohJsFormValidator.forms.profile.children.email.domNode)
+            .toBe(document.getElementById('profile_email'));
+    });
+
+    test('skips a model without a DOM node on the deferred branch too', () => {
+        document.body.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+        const rendered = buildModel('profile', 'profile', {
+            email: buildModel('profile_email', 'profile[email]'),
+        });
+
+        window.SvarohJsFormValidator.addModel(buildModel('ghost', 'ghost'));
+        window.SvarohJsFormValidator.addModel(rendered);
+
+        expect(() => document.dispatchEvent(new Event('DOMContentLoaded'))).not.toThrow();
+        expect(Object.keys(window.SvarohJsFormValidator.forms)).toEqual(['profile']);
+        expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(document.getElementById('profile'));
+    });
+});
