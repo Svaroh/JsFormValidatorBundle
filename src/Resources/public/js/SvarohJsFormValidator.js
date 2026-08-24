@@ -557,6 +557,7 @@ var SvarohJsBaseConstraint = {
 
 var SvarohJsFormValidator = new function () {
     this.forms = {};
+    this.formInstances = {};
     this.errorClass = 'form-errors';
     this.config = {};
     this.ajax = new SvarohJsAjaxRequest();
@@ -573,7 +574,7 @@ var SvarohJsFormValidator = new function () {
             // element at all, keep it out of the registry instead of storing a
             // null that every consumer of "forms" would have to guard against
             if (element) {
-                self.forms[model.id] = element;
+                self.registerForm(model, element);
             }
 
             return element;
@@ -592,6 +593,54 @@ var SvarohJsFormValidator = new function () {
                 }
             });
         }
+    };
+
+    /**
+     * The same form can be rendered several times on one page, so a model id
+     * can stand for more than one element. Every render is kept in the list of
+     * its model id, while "forms" keeps the last one for backward compatibility
+     *
+     * @param {Object} model
+     * @param {SvarohJsFormElement} element
+     *
+     * @return {SvarohJsFormElement}
+     */
+    this.registerForm = function (model, element) {
+        if (!element) {
+            return element;
+        }
+
+        this.forms[model.id] = element;
+
+        if (!this.formInstances[model.id]) {
+            this.formInstances[model.id] = [];
+        }
+
+        var instances = this.formInstances[model.id];
+        for (var i = 0; i < instances.length; i++) {
+            // A repeated initialization of the same markup replaces its element
+            if (instances[i].domNode && instances[i].domNode === element.domNode) {
+                instances[i] = element;
+
+                return element;
+            }
+        }
+
+        instances.push(element);
+
+        return element;
+    };
+
+    /**
+     * All the elements initialized for the given model id, in the order they
+     * were added
+     *
+     * @param {String} id
+     *
+     * @return {Array}
+     */
+    this.getFormInstances = function (id) {
+        return this.formInstances[id] ? this.formInstances[id] : [];
     };
 
     this.onDocumentReady = function (callback) {
@@ -807,20 +856,24 @@ var SvarohJsFormValidator = new function () {
 
     /**
      * @param {Object} model
+     * @param {HTMLElement} [scope] The node the children of a repeated form
+     *                              are looked up in
      *
      * @return {SvarohJsFormElement|null}
      */
-    this.createElement = function (model) {
+    this.createElement = function (model, scope) {
         var element = new SvarohJsFormElement();
-        element.domNode = this.findDomElement(model);
+        element.domNode = this.findDomElement(model, scope);
         if (model.children instanceof Array && !model.length && !element.domNode) {
             return null;
         }
 
+        var childScope = element.domNode ? element.domNode : scope;
+
         for (var key in model) {
             if ('children' == key) {
                 for (var childName in model.children) {
-                    var childElement = this.createElement(model.children[childName]);
+                    var childElement = this.createElement(model.children[childName], childScope);
                     if (childElement) {
                         element.children[childName] = childElement;
                         element.children[childName].parent = element;
@@ -1260,20 +1313,66 @@ var SvarohJsFormValidator = new function () {
     };
 
     /**
+     * The same form rendered several times on one page repeats its ids and
+     * names, so a model can match several nodes. Every model then takes the
+     * first node that no other element is attached to yet, which gives each
+     * render an element of its own
+     *
      * @param {Object} model
+     * @param {HTMLElement} [scope] The node to look inside of, the whole
+     *                              document is used when it holds no match
      *
      * @return {HTMLElement|null}
      */
-    this.findDomElement = function (model) {
-        var domElement = document.getElementById(model.id);
-        if (!domElement) {
-            var list = document.getElementsByName(model.name);
-            if (list.length) {
-                domElement = list[0];
+    this.findDomElement = function (model, scope) {
+        var list = this.findDomElements(model, scope);
+        if (scope && !list.length) {
+            list = this.findDomElements(model, null);
+        }
+
+        var len = list.length;
+        for (var i = 0; i < len; i++) {
+            // A node customized before the initialization keeps a plain
+            // object, only an initialized element makes the node taken
+            if (!(list[i].jsFormValidator instanceof SvarohJsFormElement)) {
+                return list[i];
             }
         }
 
-        return domElement;
+        return len ? list[0] : null;
+    };
+
+    /**
+     * All the nodes a model matches, by id first and by name after
+     *
+     * @param {Object} model
+     * @param {HTMLElement|null} scope
+     *
+     * @return {Array}
+     */
+    this.findDomElements = function (model, scope) {
+        var root = scope ? scope : document;
+        var list = [];
+
+        // getElementById() would hide the repeated renders of the same id
+        if (model.id) {
+            list = root.querySelectorAll('[id="' + this.escapeAttributeValue(model.id) + '"]');
+        }
+
+        if (!list.length && model.name) {
+            list = root.querySelectorAll('[name="' + this.escapeAttributeValue(model.name) + '"]');
+        }
+
+        return Array.prototype.slice.call(list);
+    };
+
+    /**
+     * @param {String} value
+     *
+     * @return {String}
+     */
+    this.escapeAttributeValue = function (value) {
+        return String(value).replace(/["\\]/g, '\\$&');
     };
 
     /**

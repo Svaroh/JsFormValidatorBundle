@@ -228,6 +228,7 @@ If your form rendering is customized, start with
 17. [Comparing a field with another field](src/Resources/doc/3_17.md)
 18. [The Range constraint on dates](src/Resources/doc/3_18.md)
 19. [Repeated fields](src/Resources/doc/3_19.md)
+20. [One form rendered several times](src/Resources/doc/3_20.md)
 
 ## Development
 
