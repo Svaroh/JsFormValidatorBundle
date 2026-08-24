@@ -11,6 +11,7 @@ const constraintGlobals = [
     'SymfonyComponentValidatorConstraintsEmail',
     'SymfonyComponentValidatorConstraintsEqualTo',
     'SymfonyComponentValidatorConstraintsFalse',
+    'SymfonyComponentValidatorConstraintsFile',
     'SymfonyComponentValidatorConstraintsGreaterThan',
     'SymfonyComponentValidatorConstraintsGreaterThanOrEqual',
     'SymfonyComponentValidatorConstraintsIdenticalTo',

@@ -1237,6 +1237,8 @@ var SvarohJsFormValidator = new function () {
             || 'Symfony\\Component\\Form\\Extension\\Core\\Type\\RadioType' == element.type
         ) {
             value = element.domNode.checked;
+        } else if ('file' === String(element.domNode.type || '').toLowerCase()) {
+            value = this.getFileListValue(element);
         } else if ('select' === element.domNode.tagName.toLowerCase()) {
             value = [];
             var field = element.domNode;
@@ -1248,6 +1250,29 @@ var SvarohJsFormValidator = new function () {
             }
         } else {
             value = this.getInputValue(element);
+        }
+
+        return value;
+    };
+
+    /**
+     * The "value" of a file input only holds a fake path, the selected files
+     * live in its "files" list. Symfony maps the field to uploaded file
+     * objects, so the browser works with the File objects as well.
+     *
+     * @param {SvarohJsFormElement} element
+     *
+     * @return {*}
+     */
+    this.getFileListValue = function (element) {
+        var files = element.domNode.files;
+        if (!files) {
+            return this.getInputValue(element);
+        }
+
+        var value = [];
+        for (var i = 0; i < files.length; i++) {
+            value.push(files[i]);
         }
 
         return value;

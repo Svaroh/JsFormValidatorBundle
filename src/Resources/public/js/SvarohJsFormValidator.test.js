@@ -893,6 +893,30 @@ describe('SvarohJsFormValidator runtime helpers', () => {
         expect(window.SvarohJsFormValidator.getElementValue(mapped)).toBe('child-value');
     });
 
+    test('extracts the selected files of a file input instead of its fake path', () => {
+        const file = new File(['abc'], 'avatar.png', { type: 'image/png' });
+        const element = new window.SvarohJsFormElement();
+        element.domNode = {
+            tagName: 'input',
+            type: 'file',
+            value: 'C:\\fakepath\\avatar.png',
+            files: [file],
+        };
+
+        expect(window.SvarohJsFormValidator.getElementValue(element)).toEqual([file]);
+
+        // An empty file list stays an empty value, so NotBlank keeps working
+        element.domNode.files = [];
+        expect(window.SvarohJsFormValidator.getElementValue(element)).toEqual([]);
+        expect(window.SvarohJsFormValidator.isValueEmty(
+            window.SvarohJsFormValidator.getElementValue(element)
+        )).toBe(true);
+
+        // Without the File API there is nothing but the fake path to read
+        delete element.domNode.files;
+        expect(window.SvarohJsFormValidator.getElementValue(element)).toBe('C:\\fakepath\\avatar.png');
+    });
+
     test('finds DOM nodes and forms through ids, names, and descendants', () => {
         document.body.innerHTML = '<form id="profile"><div><input name="profile[email]" value="a@b.test"></div></form>';
         const named = window.SvarohJsFormValidator.findDomElement({

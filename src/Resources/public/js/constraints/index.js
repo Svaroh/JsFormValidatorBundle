@@ -6,6 +6,7 @@ import './Date.js';
 import './DateTime.js';
 import './Email.js';
 import './EqualTo.js';
+import './File.js';
 import './GreaterThan.js';
 import './GreaterThanOrEqual.js';
 import './IdenticalTo.js';
