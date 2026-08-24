@@ -142,8 +142,9 @@ class JsFormValidatorFactoryTest extends TestCase
 
         $this->assertSame('/existing_route', $config->routing['existing']);
         $this->assertNull($config->routing['missing']);
+        $this->assertFalse($config->html5Validation);
         $this->assertSame(
-            '<script type="text/javascript">SvarohJsFormValidator.config = {\'routing\':{\'existing\':\'/existing_route\',\'missing\':null}};</script>',
+            '<script type="text/javascript">SvarohJsFormValidator.config = {\'routing\':{\'existing\':\'/existing_route\',\'missing\':null},\'html5Validation\':false};</script>',
             $factory->getJsConfigString()
         );
         $this->assertSame(
@@ -157,6 +158,27 @@ class JsFormValidatorFactoryTest extends TestCase
             $factory->getConfig()
         );
         $this->assertNull($factory->getConfig('unknown'));
+    }
+
+    /**
+     * The HTML5 integration is opt-in, so the browser only takes over the
+     * Constraint Validation API when the application asked for it
+     *
+     * @see https://github.com/formapro/JsFormValidatorBundle/issues/75
+     */
+    public function testConfigModelExportsTheHtml5ValidationFlag()
+    {
+        $factory = $this->createFactory(null, null, array(
+            'js_validation' => true,
+            'html5_validation' => true,
+            'routing' => array('check_unique_entity' => 'a_route'),
+        ));
+
+        $this->assertTrue($factory->createJsConfigModel()->html5Validation);
+        $this->assertSame(
+            '<script type="text/javascript">SvarohJsFormValidator.config = {\'routing\':{\'check_unique_entity\':\'/generated-route\'},\'html5Validation\':true};</script>',
+            $factory->getJsConfigString()
+        );
     }
 
     public function testQueueCanBeFilteredAndProcessed()

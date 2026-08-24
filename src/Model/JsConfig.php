@@ -15,4 +15,12 @@ class JsConfig extends JsModelAbstract
      * @var array
      */
     public $routing = array();
-} 
+
+    /**
+     * Whether the browser cooperates with the Constraint Validation API
+     * instead of validating the forms of this bundle on its own
+     *
+     * @var bool
+     */
+    public $html5Validation = false;
+}

@@ -67,6 +67,10 @@ export function SvarohJsFormElement() {
             return true;
         }
 
+        // The browser is asked first, while its own diagnosis is still
+        // readable: the message of this element is written back into the
+        // "customError" state the browser would otherwise answer with
+        var nativeErrors = SvarohJsFormValidator.validateNative(self);
         var validationErrors = SvarohJsFormValidator.validateElement(self);
         var invalidTargets = [];
         for (var index = 0; index < validationErrors.length; index++) {
@@ -89,6 +93,33 @@ export function SvarohJsFormElement() {
             errorTarget.errors[sourceId].push(validationError.message);
         }
 
+        // A "required" attribute and a NotBlank constraint describe the same
+        // failure, so a value the browser only calls missing is left to the
+        // constraint, whose message is the translated one. Anything else the
+        // browser diagnosed - a "type=email" it cannot parse, a "number" the
+        // user filled with letters, a value outside "min", "max" or "step" -
+        // is a different failure and is reported even when a constraint
+        // already spoke about the element
+        var nativeIsAlreadyDescribed = nativeErrors.length
+            && nativeErrors[0].describesTheSameFailureAsNotBlank
+            && -1 !== invalidTargets.indexOf(self);
+        if (nativeErrors.length && !nativeIsAlreadyDescribed) {
+            if (-1 === invalidTargets.indexOf(self)) {
+                invalidTargets.push(self);
+            }
+
+            if (!self.errors[sourceId]) {
+                self.errors[sourceId] = [];
+            }
+
+            self.errors[sourceId].push(nativeErrors[0].message);
+            validationErrors = validationErrors.concat(nativeErrors);
+        }
+
+        if (-1 === invalidTargets.indexOf(self)) {
+            SvarohJsFormValidator.syncNativeValidity(self, sourceId);
+        }
+
         for (var i = 0; i < invalidTargets.length; i++) {
             var target = invalidTargets[i];
             var errorPath = SvarohJsFormValidator.getErrorPathElement(target);
@@ -96,6 +127,8 @@ export function SvarohJsFormElement() {
             if (domNode) {
                 errorPath.showErrors.apply(domNode, [target.errors[sourceId], sourceId]);
             }
+
+            SvarohJsFormValidator.syncNativeValidity(target, sourceId);
         }
 
         return validationErrors.length === 0;
@@ -130,12 +163,18 @@ export function SvarohJsFormElement() {
             for (sourceId in this.errors) {
                 this.clearErrors(sourceId);
             }
+
+            // An element that never collected an error has nothing to loop
+            // over, and its mirrored state still has to be dropped
+            SvarohJsFormValidator.syncNativeValidity(this);
         } else {
             this.errors[sourceId] = [];
             var domNode = SvarohJsFormValidator.findErrorDomNode(this);
             if (domNode) {
                 this.showErrors.apply(domNode, [this.errors[sourceId], sourceId]);
             }
+
+            SvarohJsFormValidator.syncNativeValidity(this, sourceId);
         }
     };
 
@@ -337,6 +376,7 @@ function SvarohJsCustomizeMethods() {
         SvarohJsFormValidator.each(this, function (item) {
             item.jsFormValidator.errors[opts['sourceId']] = opts['errors'];
             item.jsFormValidator.showErrors.apply(item, [opts['errors'], opts['sourceId']]);
+            SvarohJsFormValidator.syncNativeValidity(item.jsFormValidator, opts['sourceId']);
         });
     };
 
@@ -350,7 +390,14 @@ function SvarohJsCustomizeMethods() {
                 return;
             }
 
+            // The configuration may have been rendered after the models, in
+            // which case initModel() could not read the flag yet
+            if (element.domNode) {
+                SvarohJsFormValidator.disableNativeValidationUi(element.domNode);
+            }
+
             element.validateRecursively();
+            SvarohJsFormValidator.validateNativeLeftovers(element);
             var hasAjaxQueue = SvarohJsFormValidator.ajax.queue > 0;
             var submitCallback = function () {
                 element.onValidate.apply(element.domNode, [SvarohJsFormValidator.getAllErrors(element, {}), event]);
@@ -485,6 +532,15 @@ var SvarohJsFormValidator = new function () {
             });
         } else {
             self.forms[model.id] = self.initModel(model);
+            // A model rendered inline runs before js_validator_config() when
+            // the template puts the configuration further down the document,
+            // and the native UI has to be off before the first submit
+            this.onDocumentReady(function () {
+                var form = self.forms[model.id];
+                if (form && form.domNode) {
+                    self.disableNativeValidationUi(form.domNode);
+                }
+            });
         }
     };
 
@@ -508,10 +564,187 @@ var SvarohJsFormValidator = new function () {
         element.domNode = form;
         this.attachElement(element);
         if (form) {
+            this.disableNativeValidationUi(form);
             this.attachDefaultEvent(element, form);
         }
 
         return element;
+    };
+
+    /**
+     * The HTML5 integration is opt-in: the bundle exports the flag with the
+     * rest of its configuration and the browser only acts on it when the
+     * application turned it on
+     *
+     * @return {boolean}
+     */
+    this.isHtml5Enabled = function () {
+        return true === (this.config && this.config.html5Validation);
+    };
+
+    /**
+     * A browser validates a form interactively before it fires "submit", so a
+     * field it refuses on its own - "required", "type=email", "min", "step" -
+     * stops the event this library listens to and shows a native bubble
+     * instead of the error list. The "novalidate" attribute turns that step
+     * off and leaves the reporting to this library, which surfaces the same
+     * failures itself through validateNative().
+     *
+     * @param {HTMLFormElement} form
+     */
+    this.disableNativeValidationUi = function (form) {
+        if (this.isHtml5Enabled() && form.tagName && 'form' === form.tagName.toLowerCase()) {
+            form.setAttribute('novalidate', 'novalidate');
+        }
+    };
+
+    /**
+     * Reads what the browser knows about the element on its own: a "number"
+     * field the user filled with letters, an empty "required" field, a value
+     * outside the "min", "max" or "step" the widget carries. The message this
+     * library wrote is removed first, otherwise the browser would answer with
+     * it instead of its own diagnosis.
+     *
+     * @param {SvarohJsFormElement} element
+     *
+     * @return {Array}
+     */
+    this.validateNative = function (element) {
+        var domNode = element.domNode;
+        if (!this.isHtml5Enabled() || !domNode || typeof domNode.setCustomValidity !== 'function') {
+            return [];
+        }
+
+        domNode.setCustomValidity('');
+        if (!domNode.willValidate || !domNode.validity || domNode.validity.valid) {
+            return [];
+        }
+
+        // An expanded choice renders one widget per choice and every one of
+        // them carries the same "required", so the browser reports the same
+        // missing value once per radio. The group is spoken for by its first
+        // widget, which is where the error list of the group belongs.
+        if (this.isSecondaryRadioOfItsGroup(domNode)) {
+            return [];
+        }
+
+        var error = new SvarohJsFormError(domNode.validationMessage || 'This value is not valid.');
+        // "required" and NotBlank are the same failure, and the constraint
+        // owns it; every other diagnosis of the browser is its own
+        error.describesTheSameFailureAsNotBlank = true === domNode.validity.valueMissing
+            && !domNode.validity.badInput
+            && !domNode.validity.typeMismatch
+            && !domNode.validity.patternMismatch
+            && !domNode.validity.tooLong
+            && !domNode.validity.tooShort
+            && !domNode.validity.rangeUnderflow
+            && !domNode.validity.rangeOverflow
+            && !domNode.validity.stepMismatch;
+
+        return [error];
+    };
+
+    /**
+     * All the radios of a group share a name and a "required" attribute, so
+     * the browser refuses every one of them for the one missing value
+     *
+     * @param {HTMLElement} domNode
+     *
+     * @return {boolean}
+     */
+    this.isSecondaryRadioOfItsGroup = function (domNode) {
+        if ('radio' !== domNode.type || !domNode.form || !domNode.name) {
+            return false;
+        }
+
+        var group = domNode.form.elements[domNode.name];
+
+        return !!(group && group.length && group[0] !== domNode);
+    };
+
+    /**
+     * Every widget of a form used to be enforced by the browser, including
+     * the ones this library has no model for - a field excluded server side
+     * with "js_validation" => false, a widget switched off with
+     * customize(node, {disabled: true}), a control a form theme rendered
+     * outside of the model. Setting "novalidate" takes that enforcement away
+     * from all of them at once, so what the browser still refuses and nobody
+     * reported is collected here and reported through the error list, and the
+     * submit is refused for it the way the browser used to refuse it.
+     *
+     * @param {SvarohJsFormElement} element the element of the form itself
+     */
+    this.validateNativeLeftovers = function (element) {
+        var form = element.domNode;
+        if (!this.isHtml5Enabled() || !form || !form.elements) {
+            return;
+        }
+
+        var sourceId = 'form-error-' + String(element.id).replace(/_/g, '-');
+        for (var index = 0; index < form.elements.length; index++) {
+            var domNode = form.elements[index];
+            if (!domNode.willValidate || !domNode.validity || domNode.validity.valid) {
+                continue;
+            }
+
+            // A message mirrored onto the widget is this library refusing it,
+            // and an element with a model of its own was already asked during
+            // validate() - unless its validation is switched off, which never
+            // meant the browser should stop enforcing the widget either
+            var owner = domNode.jsFormValidator;
+            if (domNode.validity.customError || (owner && !owner.disabled)) {
+                continue;
+            }
+
+            if (this.isSecondaryRadioOfItsGroup(domNode)) {
+                continue;
+            }
+
+            var target = owner || element;
+            if (!target.errors[sourceId]) {
+                target.errors[sourceId] = [];
+            }
+
+            target.errors[sourceId].push(domNode.validationMessage || 'This value is not valid.');
+            var errorPath = this.getErrorPathElement(target);
+            var errorDomNode = this.findErrorDomNode(errorPath);
+            if (errorDomNode) {
+                errorPath.showErrors.apply(errorDomNode, [target.errors[sourceId], sourceId]);
+            }
+        }
+    };
+
+    /**
+     * Mirrors the errors of the element into the Constraint Validation API, so
+     * that ":invalid" styling, "form.checkValidity()" and any other native
+     * tooling agree with what this library decided. The state is as fresh as
+     * the last validation run of the element, which this bundle performs on
+     * submit and on the events the application asks for.
+     *
+     * @param {SvarohJsFormElement} element
+     * @param {String}                [preferredSourceId] the source being rendered
+     */
+    this.syncNativeValidity = function (element, preferredSourceId) {
+        var domNode = element.domNode;
+        if (!this.isHtml5Enabled() || !domNode || typeof domNode.setCustomValidity !== 'function') {
+            return;
+        }
+
+        var message = '';
+        // The source that is being rendered speaks first, so that the message
+        // the browser reports is the one heading the list the user reads
+        if (preferredSourceId && element.errors[preferredSourceId] && element.errors[preferredSourceId].length) {
+            message = String(element.errors[preferredSourceId][0]);
+        } else {
+            for (var sourceId in element.errors) {
+                if (element.errors[sourceId].length) {
+                    message = String(element.errors[sourceId][0]);
+                    break;
+                }
+            }
+        }
+
+        domNode.setCustomValidity(message);
     };
 
     /**
