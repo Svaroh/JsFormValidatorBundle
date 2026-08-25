@@ -26,6 +26,8 @@ services:
             - '@router'
             - '%svaroh_js_form_validator.config%'
             - '%validator.translation_domain%'
+        calls:
+            - [setLogger, ['@?logger']]
 
     Svaroh\JsFormValidatorBundle\Controller\AjaxController:
         public: true
