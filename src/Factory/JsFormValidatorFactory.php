@@ -1,6 +1,7 @@
 <?php
 namespace Svaroh\JsFormValidatorBundle\Factory;
 
+use Psr\Log\LoggerInterface;
 use Svaroh\JsFormValidatorBundle\Exception\UndefinedFormException;
 use Svaroh\JsFormValidatorBundle\Form\Constraint\UniqueEntity;
 use Svaroh\JsFormValidatorBundle\Model\JsConfig;
@@ -43,9 +44,11 @@ class JsFormValidatorFactory
      * validators, so the browser is told the same form the server would have
      * shown for the same limit.
      *
-     * A message option that is not listed here and does not follow the
-     * "<option>Message" naming convention is translated without a count, which
-     * is what the library did before.
+     * This table is the whole of what the library knows about Symfony's own
+     * constraints: a message of theirs that is missing from it is translated
+     * without a count, keeping every form, which is what the library did before
+     * the table existed. Constraints from elsewhere are matched by the naming
+     * convention in getPluralCount() instead.
      */
     protected const PLURAL_COUNT_OPTIONS = array(
         Choice::class => array('minMessage' => 'min', 'maxMessage' => 'max'),
@@ -54,6 +57,21 @@ class JsFormValidatorFactory
         File::class => array('filenameTooLongMessage' => 'filenameMaxLength'),
         WordCount::class => array('minMessage' => 'min', 'maxMessage' => 'max'),
     );
+
+    /**
+     * The namespace Symfony's own constraints live in.
+     *
+     * Their pluralized messages are enumerated in PLURAL_COUNT_OPTIONS, so the
+     * naming convention is never applied to them. It would match options that
+     * are not counts of anything -- Range::$min, Image::$minRatio,
+     * Count::$divisibleBy -- and a translation of one of those that happens to
+     * contain a "|" would be cut at a separator that was never a plural one.
+     *
+     * A constraint that extends one of Symfony's inherits those same options
+     * and the same validator, which does not call setPlural() for them either,
+     * so the whole ancestry is looked at rather than the class itself.
+     */
+    protected const SYMFONY_CONSTRAINT_NAMESPACE = 'Symfony\\Component\\Validator\\Constraints\\';
 
     /**
      * @var ValidatorInterface
@@ -91,6 +109,11 @@ class JsFormValidatorFactory
     protected $transDomain;
 
     /**
+     * @var LoggerInterface|null
+     */
+    protected $logger = null;
+
+    /**
      * @param ValidatorInterface    $validator
      * @param TranslatorInterface   $translator
      * @param \Symfony\Component\Routing\Generator\UrlGeneratorInterface $router
@@ -112,6 +135,21 @@ class JsFormValidatorFactory
     }
 
     /**
+     * The logger the factory reports a message it could not translate to
+     *
+     * Optional: without one those messages are still handed to the browser in
+     * the shape they came in, they are just not reported anywhere.
+     *
+     * @param LoggerInterface|null $logger
+     *
+     * @return void
+     */
+    public function setLogger(?LoggerInterface $logger)
+    {
+        $this->logger = $logger;
+    }
+
+    /**
      * Gets metadata from system using the entity class name
      *
      * @param string $className
@@ -127,47 +165,78 @@ class JsFormValidatorFactory
     /**
      * Translate a single message
      *
-     * A pluralized message carries every form of the translation in one string,
-     * separated by "|", and which of them applies depends on the locale: two
-     * forms in English, three in Ukrainian, six in Arabic. Given the number the
-     * message speaks about, the translator picks the form for the current
-     * locale here, so the browser receives the one form it has to show.
+     * @param string $message
+     *
+     * @return string
+     */
+    protected function translateMessage($message, ?array $parameters = null)
+    {
+        return $this->translator->trans($message, $parameters ?? array(), $this->transDomain);
+    }
+
+    /**
+     * Translate a message that carries every plural form of the translation
+     *
+     * Such a message holds those forms in one string, separated by "|", and
+     * which of them applies depends on the locale: two forms in English, three
+     * in Ukrainian, six in Arabic. Given the number the message speaks about,
+     * the translator picks the form for the current locale here, so the browser
+     * receives the one form it has to show.
+     *
+     * The number is handed to translateMessage() as the "%count%" parameter it
+     * has always been, so every message still goes through that one method and
+     * an override of it sees the pluralized ones too.
      *
      * @param string   $message
      * @param int|null $plural  The number the message is pluralized by, if any
      *
      * @return string
      */
-    protected function translateMessage($message, ?array $parameters = null, $plural = null)
+    protected function translatePluralMessage($message, $plural, ?array $parameters = null)
     {
-        $parameters = $parameters ?? array();
-
         if (null !== $plural) {
             try {
-                return $this->translator->trans(
+                return $this->translateMessage(
                     $message,
-                    array('%count%' => $plural) + $parameters,
-                    $this->transDomain
+                    array('%count%' => $plural) + ($parameters ?? array())
                 );
             } catch (\InvalidArgumentException $e) {
-                // The translation offers fewer forms than the locale needs, so
-                // no form can be chosen. Fall through and hand the whole
-                // message to the browser, as this library did before, rather
-                // than break the rendering of the form over a translation.
+                // Most often the translation offers fewer forms than the locale
+                // needs, so no form can be chosen. Hand the whole message to the
+                // browser then, as this library did before, rather than break
+                // the rendering of a form over a translation. The catch is wider
+                // than that one case on purpose, so say what was swallowed: a
+                // message that reaches the browser still carrying its "|"
+                // separators gives nobody anything else to go on. It is a
+                // warning rather than a debug note because that message is what
+                // the form actually shows, which is a defect in the rendering
+                // and not a diagnostic detail.
+                if (null !== $this->logger) {
+                    $this->logger->warning(
+                        'Could not choose a plural form for the message "{message}", '
+                        . 'handing every form to the browser: {reason}',
+                        array('message' => $message, 'reason' => $e->getMessage(), 'exception' => $e)
+                    );
+                }
             }
         }
 
-        return $this->translator->trans($message, $parameters, $this->transDomain);
+        return $this->translateMessage($message, $parameters);
     }
 
     /**
      * The number a pluralized message option picks its form by, or null when the
      * constraint does not pluralize that message.
      *
-     * Constraints of Symfony's own are listed in PLURAL_COUNT_OPTIONS. Anything
-     * else is matched by the naming convention those constraints follow, where
-     * "minMessage" is pluralized by the "min" option, so a custom constraint
-     * that keeps the convention is covered without being listed.
+     * Constraints of Symfony's own, and constraints extending one of them, are
+     * answered from PLURAL_COUNT_OPTIONS and from nothing else, because that
+     * table covers every pluralized message they have. A constraint of an
+     * application's own is matched by the naming convention Symfony's
+     * constraints follow, where "minMessage" is pluralized by the "min" option,
+     * so it is covered without being listed.
+     *
+     * A limit that is not a whole number is truncated towards zero, the same
+     * cast Symfony's own setPlural(int $number) applies to it.
      *
      * @param object $constraint
      * @param string $messageOption
@@ -186,6 +255,10 @@ class JsFormValidatorFactory
         }
 
         if (null === $countOption) {
+            if ($this->isSymfonyConstraint($constraint)) {
+                return null;
+            }
+
             if (!preg_match('/^(?<option>.+)Message$/', $messageOption, $matches)) {
                 return null;
             }
@@ -203,6 +276,35 @@ class JsFormValidatorFactory
         }
 
         return (int) $options[$countOption];
+    }
+
+    /**
+     * Whether the constraint is one of Symfony's own, or extends one
+     *
+     * PLURAL_COUNT_OPTIONS is matched with "instanceof", so a constraint that
+     * extends Length is already answered by Length's row. The messages that
+     * table does not name have to be left alone for the same reason they are
+     * left alone on Symfony's own class: the validator behind them is Symfony's
+     * and it calls setPlural() for nothing else.
+     *
+     * @param object $constraint
+     *
+     * @return bool
+     */
+    protected function isSymfonyConstraint($constraint)
+    {
+        $classes = array_merge(
+            array(get_class($constraint)),
+            array_values(class_parents($constraint) ?: array())
+        );
+
+        foreach ($classes as $class) {
+            if (str_starts_with($class, static::SYMFONY_CONSTRAINT_NAMESPACE)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -835,9 +937,8 @@ class JsFormValidatorFactory
             // Translate messages if need and add to result
             foreach ($item as $propName => $propValue) {
                 if (false !== strpos(strtolower($propName), 'message')) {
-                    $item->{$propName} = $this->translateMessage(
+                    $item->{$propName} = $this->translatePluralMessage(
                         $propValue,
-                        null,
                         $this->getPluralCount($item, $propName)
                     );
                 }

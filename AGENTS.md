@@ -26,7 +26,7 @@ Repository: `Svaroh/JsFormValidatorBundle` (default branch: `main`)
 
 Last verified in the Nix shell on PHP 8.5.6 / Node 24.16.0:
 
-- `composer test`: 81 tests, 250 assertions.
+- `composer test`: 95 tests, 268 assertions.
 - `composer phpstan`: no errors.
 - `composer coverage`: PHP line coverage ~97%, threshold `80%`.
 - `npm run test:unit`: Jest 608 tests.
