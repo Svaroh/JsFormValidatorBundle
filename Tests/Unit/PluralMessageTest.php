@@ -5,6 +5,7 @@ namespace Svaroh\JsFormValidatorBundle\Tests\Unit;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
+use Psr\Log\LogLevel;
 use Svaroh\JsFormValidatorBundle\Factory\JsFormValidatorFactory;
 use Svaroh\JsFormValidatorBundle\Form\Extension\FormExtension;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
@@ -17,6 +18,7 @@ use Symfony\Component\Translation\Translator;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Validation;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
  * A pluralized message carries every form of the translation in one string.
@@ -199,14 +201,25 @@ class PluralMessageTest extends TestCase
             'Range::min' => array(new Assert\Range(min: 1, max: 10), 'minMessage', $piped),
             'Count::divisibleBy' => array(new Assert\Count(divisibleBy: 1), 'divisibleByMessage', $piped),
             'Image::minRatio' => array(new Assert\Image(minRatio: 1.0), 'minRatioMessage', $piped),
+
+            // A constraint of an application's own that extends one of
+            // Symfony's keeps Symfony's options and Symfony's validator, so it
+            // pluralizes exactly what Symfony pluralizes and nothing more.
+            'ApplicationRange::min' => array(new ApplicationRange(min: 1, max: 10), 'minMessage', $piped),
+            'ApplicationCount::divisibleBy' => array(
+                new ApplicationCount(divisibleBy: 1),
+                'divisibleByMessage',
+                $piped,
+            ),
         );
     }
 
     /**
      * The table covers every pluralized message of Symfony's own constraints,
-     * so the naming convention is not applied to them at all. It would match
-     * options that count nothing, and a translation that happens to carry a
-     * literal "|" would be cut at a separator that was never a plural one.
+     * so the naming convention is not applied to them, nor to a constraint that
+     * extends one of them. It would match options that count nothing, and a
+     * translation that happens to carry a literal "|" would be cut at a
+     * separator that was never a plural one.
      */
     #[DataProvider('constraintsSymfonyDoesNotPluralize')]
     public function testLeavesAMessageSymfonyDoesNotPluralizeWhole(
@@ -221,6 +234,22 @@ class PluralMessageTest extends TestCase
         );
 
         $this->assertSame($message, $options[$messageOption]);
+    }
+
+    /**
+     * Leaving the rest of an extended constraint alone must not cost it the
+     * messages the table does name: those are matched with "instanceof", so
+     * Count's row answers for a constraint that extends Count.
+     */
+    public function testPluralizesTheTableRowsOfAnExtendedConstraint()
+    {
+        $options = $this->parseConstraint(
+            new ApplicationCount(min: 5),
+            'uk',
+            array((new Assert\Count(min: 1))->minMessage => self::UK_COUNT_MIN)
+        );
+
+        $this->assertSame('Ця колекція повинна містити {{ limit }} елементів чи більше.', $options['minMessage']);
     }
 
     /**
@@ -262,10 +291,11 @@ class PluralMessageTest extends TestCase
 
         $reported = array_values(array_filter(
             $logger->records,
-            static fn (array $record): bool => $messageId === $record['context']['message']
+            static fn (array $record): bool => $messageId === ($record['context']['message'] ?? null)
         ));
 
         $this->assertCount(1, $reported);
+        $this->assertSame(LogLevel::WARNING, $reported[0]['level']);
         $this->assertStringContainsString('Could not choose a plural form', $reported[0]['message']);
         $this->assertStringContainsString($twoForms, $reported[0]['context']['reason']);
         $this->assertInstanceOf(\InvalidArgumentException::class, $reported[0]['context']['exception']);
@@ -296,7 +326,7 @@ class PluralMessageTest extends TestCase
      * part of it since long before a plural form was chosen here. An override
      * that knows only its original two arguments keeps working: declaring
      * LegacyFactory below would be a fatal error otherwise, and every message
-     * that is not pluralized still goes through it.
+     * still goes through it, pluralized or not.
      */
     public function testHonoursAnOverriddenTranslateMessage()
     {
@@ -312,8 +342,29 @@ class PluralMessageTest extends TestCase
     }
 
     /**
+     * A pluralized message is handed to translateMessage() as well, with the
+     * chosen count among its parameters, so an override sees it like any other.
+     */
+    public function testHonoursAnOverriddenTranslateMessageOnAPluralizedMessage()
+    {
+        $factory = $this->createFactory(
+            'uk',
+            array((new Assert\Count(min: 1))->minMessage => self::UK_COUNT_MIN),
+            LegacyFactory::class
+        );
+
+        $options = $this->parseConstraint(new Assert\Count(min: 5), 'uk', array(), $factory);
+
+        $this->assertSame(
+            '[Ця колекція повинна містити {{ limit }} елементів чи більше.]',
+            $options['minMessage']
+        );
+    }
+
+    /**
      * The fallback of a pluralized message runs through translateMessage() too,
-     * so an override still sees the messages no form could be chosen for.
+     * so an override still sees the messages no form could be chosen for, and
+     * sees them once rather than twice.
      */
     public function testHonoursAnOverriddenTranslateMessageOnTheFallback()
     {
@@ -321,13 +372,20 @@ class PluralMessageTest extends TestCase
 
         $factory = $this->createFactory(
             'uk',
-            array((new Assert\Count(min: 1))->minMessage => $twoForms)
-        , LegacyFactory::class);
+            array((new Assert\Count(min: 1))->minMessage => $twoForms),
+            LegacyFactory::class
+        );
 
         $options = $this->parseConstraint(new Assert\Count(min: 5), 'uk', array(), $factory);
 
         $this->assertSame('[' . $twoForms . ']', $options['minMessage']);
     }
+
+    /**
+     * The validator the factory was built with, which the form is given as
+     * well: in the container both are the one "validator" service.
+     */
+    private ?ValidatorInterface $validator = null;
 
     /**
      * Builds a factory that translates against the given catalogue.
@@ -347,8 +405,10 @@ class PluralMessageTest extends TestCase
         $router = $this->createStub(UrlGeneratorInterface::class);
         $router->method('generate')->willReturn('/generated-route');
 
+        $this->validator = Validation::createValidator();
+
         return new $class(
-            Validation::createValidator(),
+            $this->validator,
             $translator,
             $router,
             array('js_validation' => true),
@@ -371,9 +431,10 @@ class PluralMessageTest extends TestCase
         ?JsFormValidatorFactory $factory = null
     ): array {
         $factory = $factory ?? $this->createFactory($locale, $catalogue);
+        $validator = $this->validator ?? Validation::createValidator();
 
         $form = Forms::createFormFactoryBuilder()
-            ->addExtension(new ValidatorExtension(Validation::createValidator()))
+            ->addExtension(new ValidatorExtension($validator))
             ->addTypeExtension(new FormExtension($factory))
             ->getFormFactory()
             ->createBuilder(FormType::class, null, array('validation_groups' => array('Default')))
@@ -409,6 +470,20 @@ class CustomLimitConstraint extends Constraint
     {
         return self::PROPERTY_CONSTRAINT;
     }
+}
+
+/**
+ * A constraint of an application's own that extends one of Symfony's. It keeps
+ * Symfony's options and Symfony's validator, so it pluralizes what Symfony
+ * pluralizes: nothing, in the case of Range.
+ */
+class ApplicationRange extends Assert\Range
+{
+}
+
+/** The same, over a constraint that does have rows in the factory's table. */
+class ApplicationCount extends Assert\Count
+{
 }
 
 /**

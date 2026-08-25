@@ -66,6 +66,10 @@ class JsFormValidatorFactory
      * are not counts of anything -- Range::$min, Image::$minRatio,
      * Count::$divisibleBy -- and a translation of one of those that happens to
      * contain a "|" would be cut at a separator that was never a plural one.
+     *
+     * A constraint that extends one of Symfony's inherits those same options
+     * and the same validator, which does not call setPlural() for them either,
+     * so the whole ancestry is looked at rather than the class itself.
      */
     protected const SYMFONY_CONSTRAINT_NAMESPACE = 'Symfony\\Component\\Validator\\Constraints\\';
 
@@ -179,6 +183,10 @@ class JsFormValidatorFactory
      * the translator picks the form for the current locale here, so the browser
      * receives the one form it has to show.
      *
+     * The number is handed to translateMessage() as the "%count%" parameter it
+     * has always been, so every message still goes through that one method and
+     * an override of it sees the pluralized ones too.
+     *
      * @param string   $message
      * @param int|null $plural  The number the message is pluralized by, if any
      *
@@ -188,10 +196,9 @@ class JsFormValidatorFactory
     {
         if (null !== $plural) {
             try {
-                return $this->translator->trans(
+                return $this->translateMessage(
                     $message,
-                    array('%count%' => $plural) + ($parameters ?? array()),
-                    $this->transDomain
+                    array('%count%' => $plural) + ($parameters ?? array())
                 );
             } catch (\InvalidArgumentException $e) {
                 // Most often the translation offers fewer forms than the locale
@@ -200,9 +207,12 @@ class JsFormValidatorFactory
                 // the rendering of a form over a translation. The catch is wider
                 // than that one case on purpose, so say what was swallowed: a
                 // message that reaches the browser still carrying its "|"
-                // separators gives nobody anything else to go on.
+                // separators gives nobody anything else to go on. It is a
+                // warning rather than a debug note because that message is what
+                // the form actually shows, which is a defect in the rendering
+                // and not a diagnostic detail.
                 if (null !== $this->logger) {
-                    $this->logger->debug(
+                    $this->logger->warning(
                         'Could not choose a plural form for the message "{message}", '
                         . 'handing every form to the browser: {reason}',
                         array('message' => $message, 'reason' => $e->getMessage(), 'exception' => $e)
@@ -218,11 +228,12 @@ class JsFormValidatorFactory
      * The number a pluralized message option picks its form by, or null when the
      * constraint does not pluralize that message.
      *
-     * Constraints of Symfony's own are answered from PLURAL_COUNT_OPTIONS and
-     * from nothing else, because that table covers every pluralized message
-     * they have. A constraint of an application's own is matched by the naming
-     * convention Symfony's constraints follow, where "minMessage" is pluralized
-     * by the "min" option, so it is covered without being listed.
+     * Constraints of Symfony's own, and constraints extending one of them, are
+     * answered from PLURAL_COUNT_OPTIONS and from nothing else, because that
+     * table covers every pluralized message they have. A constraint of an
+     * application's own is matched by the naming convention Symfony's
+     * constraints follow, where "minMessage" is pluralized by the "min" option,
+     * so it is covered without being listed.
      *
      * A limit that is not a whole number is truncated towards zero, the same
      * cast Symfony's own setPlural(int $number) applies to it.
@@ -244,7 +255,7 @@ class JsFormValidatorFactory
         }
 
         if (null === $countOption) {
-            if (str_starts_with(get_class($constraint), static::SYMFONY_CONSTRAINT_NAMESPACE)) {
+            if ($this->isSymfonyConstraint($constraint)) {
                 return null;
             }
 
@@ -265,6 +276,35 @@ class JsFormValidatorFactory
         }
 
         return (int) $options[$countOption];
+    }
+
+    /**
+     * Whether the constraint is one of Symfony's own, or extends one
+     *
+     * PLURAL_COUNT_OPTIONS is matched with "instanceof", so a constraint that
+     * extends Length is already answered by Length's row. The messages that
+     * table does not name have to be left alone for the same reason they are
+     * left alone on Symfony's own class: the validator behind them is Symfony's
+     * and it calls setPlural() for nothing else.
+     *
+     * @param object $constraint
+     *
+     * @return bool
+     */
+    protected function isSymfonyConstraint($constraint)
+    {
+        $classes = array_merge(
+            array(get_class($constraint)),
+            array_values(class_parents($constraint) ?: array())
+        );
+
+        foreach ($classes as $class) {
+            if (str_starts_with($class, static::SYMFONY_CONSTRAINT_NAMESPACE)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
