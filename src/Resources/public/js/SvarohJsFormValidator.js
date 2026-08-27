@@ -678,6 +678,16 @@ var SvarohJsFormValidator = new function () {
     };
 
     this.onDocumentReady = function (callback) {
+        // A model added after the document was parsed - a form fragment that a
+        // single page application fetched and injected - would wait here for a
+        // "DOMContentLoaded" that has already been dispatched, so the callback
+        // runs right away once the document is past parsing
+        if (document.readyState && 'loading' !== document.readyState) {
+            callback();
+
+            return;
+        }
+
         var addListener = document.addEventListener || document.attachEvent;
         var removeListener = document.removeEventListener || document.detachEvent;
         var eventName = document.addEventListener ? "DOMContentLoaded" : "onreadystatechange";

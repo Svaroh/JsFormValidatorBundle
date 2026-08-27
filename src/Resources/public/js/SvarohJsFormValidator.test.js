@@ -1276,6 +1276,41 @@ describe('SvarohJsFormValidator model registration', () => {
         expect(Object.keys(window.SvarohJsFormValidator.forms)).toEqual(['profile']);
         expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(document.getElementById('profile'));
     });
+
+    // A single page application injects a form long after "DOMContentLoaded",
+    // and a listener for that event would never be called again
+    test('registers a model of a form injected after the document is ready', () => {
+        document.body.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+
+        window.SvarohJsFormValidator.addModel(buildModel('profile', 'profile', {
+            email: buildModel('profile_email', 'profile[email]'),
+        }));
+
+        expect(Object.keys(window.SvarohJsFormValidator.forms)).toEqual(['profile']);
+        expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(document.getElementById('profile'));
+    });
+
+    test('still waits for the document while it is being parsed', () => {
+        Object.defineProperty(document, 'readyState', {
+            configurable: true,
+            get: () => 'loading',
+        });
+
+        try {
+            document.body.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+            window.SvarohJsFormValidator.addModel(buildModel('profile', 'profile', {
+                email: buildModel('profile_email', 'profile[email]'),
+            }));
+
+            expect(window.SvarohJsFormValidator.forms.profile).toBeUndefined();
+
+            document.dispatchEvent(new Event('DOMContentLoaded'));
+
+            expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(document.getElementById('profile'));
+        } finally {
+            delete document.readyState;
+        }
+    });
 });
 
 describe('SvarohJsFormValidator property paths', () => {
