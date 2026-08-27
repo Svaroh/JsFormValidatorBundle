@@ -51,6 +51,9 @@ export function SvarohJsFormElement() {
     this.children = {};
     this.parent = null;
     this.domNode = null;
+    // The node the model id matched, when the element was moved to the form
+    // afterwards, see SvarohJsFormValidator.initModel()
+    this.widgetDomNode = null;
 
     this.callbacks = {};
     this.errors = {};
@@ -702,6 +705,208 @@ var SvarohJsFormValidator = new function () {
         return this.formInstances[id] ? this.formInstances[id] : [];
     };
 
+    /**
+     * Undoes what "attachElement" and "attachDefaultEvent" did to the DOM
+     * nodes of an element and of its children, so a node an application
+     * dropped from the document keeps no reference back to the model and no
+     * listener of this library
+     *
+     * An element can be attached to two nodes: "createElement" attaches it to
+     * the node the model id matched, which in the default rendering is the
+     * widget container inside the form, and "initModel" attaches the root
+     * element to the form itself afterwards. Both are taken back, otherwise
+     * the node that is left attached hands its stale element to the next
+     * initialization of the same markup
+     *
+     * Internal, the entry points are "removeModel", "removeForm" and
+     * "removeDetachedForms"
+     *
+     * @param {SvarohJsFormElement} element
+     */
+    this.detachElement = function (element) {
+        if (!element) {
+            return;
+        }
+
+        for (var name in element.children) {
+            this.detachElement(element.children[name]);
+        }
+
+        this.detachNode(element.widgetDomNode, element);
+        this.detachNode(element.domNode, element);
+    };
+
+    /**
+     * Internal, see "detachElement"
+     *
+     * @param {HTMLElement} domNode
+     * @param {SvarohJsFormElement} element
+     */
+    this.detachNode = function (domNode, element) {
+        if (!domNode) {
+            return;
+        }
+
+        if (domNode.jsFormValidator === element) {
+            delete domNode.jsFormValidator;
+        }
+
+        // Another model can be rooted in the same form, and the listener reads
+        // the element off the node when the form is submitted, so the listener
+        // only goes with the last element the node was attached to
+        if (domNode.__svarohJsFormValidatorSubmitListener && undefined === domNode.jsFormValidator) {
+            domNode.removeEventListener('submit', domNode.__svarohJsFormValidatorSubmitListener);
+            delete domNode.__svarohJsFormValidatorSubmitListener;
+        }
+    };
+
+    /**
+     * Whether the element or any of its children still has a node in the
+     * document. A model whose form tag was not found has no node of its own -
+     * "initModel" allows that - and is still rendered through its children,
+     * so the root node alone does not answer the question
+     *
+     * Internal, see "removeDetachedForms"
+     *
+     * @param {SvarohJsFormElement} element
+     *
+     * @return {Boolean}
+     */
+    this.isElementInDocument = function (element) {
+        if (element.domNode && document.contains(element.domNode)) {
+            return true;
+        }
+
+        if (element.widgetDomNode && document.contains(element.widgetDomNode)) {
+            return true;
+        }
+
+        for (var name in element.children) {
+            if (this.isElementInDocument(element.children[name])) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    /**
+     * Replaces the registrations of a model id with the given ones and drops
+     * the id entirely when none are left, so "forms" never answers with an
+     * element the registry no longer holds
+     *
+     * Internal, see "removeModel", "removeForm" and "removeDetachedForms"
+     *
+     * @param {String} id
+     * @param {Array} instances
+     */
+    this.replaceFormInstances = function (id, instances) {
+        if (!instances.length) {
+            delete this.formInstances[id];
+            delete this.forms[id];
+
+            return;
+        }
+
+        this.formInstances[id] = instances;
+        for (var i = 0; i < instances.length; i++) {
+            if (instances[i] === this.forms[id]) {
+                return;
+            }
+        }
+
+        this.forms[id] = instances[instances.length - 1];
+    };
+
+    /**
+     * Removes every registration of a model id
+     *
+     * @param {String} id
+     *
+     * @return {Number} the number of removed registrations
+     */
+    this.removeModel = function (id) {
+        var instances = this.getFormInstances(id);
+        for (var i = 0; i < instances.length; i++) {
+            this.detachElement(instances[i]);
+        }
+
+        this.replaceFormInstances(id, []);
+
+        return instances.length;
+    };
+
+    /**
+     * Removes the registration attached to one rendered form, which is what an
+     * application replacing a single render needs. The node is either the form
+     * tag or the node the model id matched - the default rendering puts the id
+     * of the model on a container inside the form, so
+     * "document.getElementById(id)" answers with that container and not with
+     * the form
+     *
+     * @param {HTMLElement} domNode
+     *
+     * @return {Boolean} whether a registration was removed
+     */
+    this.removeForm = function (domNode) {
+        if (!domNode) {
+            return false;
+        }
+
+        var removed = false;
+        for (var id in this.formInstances) {
+            var kept = [];
+            var instances = this.formInstances[id];
+            for (var i = 0; i < instances.length; i++) {
+                if (instances[i].domNode === domNode || instances[i].widgetDomNode === domNode) {
+                    this.detachElement(instances[i]);
+                    removed = true;
+                } else {
+                    kept.push(instances[i]);
+                }
+            }
+
+            // An id nothing was removed from keeps the list it already has,
+            // otherwise a caller holding the answer of "getFormInstances"
+            // would be left with an array the registry no longer uses
+            if (kept.length !== instances.length) {
+                this.replaceFormInstances(id, kept);
+            }
+        }
+
+        return removed;
+    };
+
+    /**
+     * Removes every registration whose form is no longer in the document. An
+     * application that swaps rendered forms in and out without naming them
+     * calls this after a swap, otherwise the registry grows with elements of
+     * nodes that are gone
+     *
+     * @return {Number} the number of removed registrations
+     */
+    this.removeDetachedForms = function () {
+        var removed = 0;
+        for (var id in this.formInstances) {
+            var kept = [];
+            var instances = this.formInstances[id];
+            for (var i = 0; i < instances.length; i++) {
+                if (this.isElementInDocument(instances[i])) {
+                    kept.push(instances[i]);
+                } else {
+                    this.detachElement(instances[i]);
+                    removed++;
+                }
+            }
+
+            if (kept.length !== instances.length) {
+                this.replaceFormInstances(id, kept);
+            }
+        }
+
+        return removed;
+    };
+
     this.onDocumentReady = function (callback) {
         // A model added to a document that is already loaded - a form fragment
         // that a single page application fetched and injected - would wait
@@ -751,8 +956,18 @@ var SvarohJsFormValidator = new function () {
         }
 
         var form = this.findFormElement(element);
+        // "createElement" attached the element to the node its model id
+        // matched, which in the default rendering is the widget container
+        // inside the form and not the form itself. Both nodes point back at
+        // the element, so both have to be taken back in "detachElement". The
+        // container is written after "attachElement", which answers with what
+        // the form node carried before and would otherwise hand this element
+        // the container of another model rooted in the same form
+        var widgetDomNode = element.domNode && element.domNode !== form ? element.domNode : null;
+
         element.domNode = form;
         this.attachElement(element);
+        element.widgetDomNode = widgetDomNode;
         if (form) {
             this.disableNativeValidationUi(form);
             this.attachDefaultEvent(element, form);
@@ -1426,9 +1641,10 @@ var SvarohJsFormValidator = new function () {
             return;
         }
 
-        if (undefined !== element.domNode.jsFormValidator) {
-            for (var key in element.domNode.jsFormValidator) {
-                element[key] = element.domNode.jsFormValidator[key];
+        var attached = element.domNode.jsFormValidator;
+        if (undefined !== attached) {
+            for (var key in attached) {
+                element[key] = attached[key];
             }
         }
 
@@ -1440,9 +1656,20 @@ var SvarohJsFormValidator = new function () {
      * @param {HTMLFormElement} form
      */
     this.attachDefaultEvent = function (element, form) {
-        form.addEventListener('submit', function (event) {
+        // The same markup can be initialized more than once - an application
+        // that renders a form fragment again - and a second listener would run
+        // the whole validation twice for one submit, so the listener is kept
+        // on the node and replaced instead of stacked
+        if (form.__svarohJsFormValidatorSubmitListener) {
+            form.removeEventListener('submit', form.__svarohJsFormValidatorSubmitListener);
+        }
+
+        var listener = function (event) {
             SvarohJsFormValidator.customize(form, 'submitForm', event);
-        });
+        };
+
+        form.__svarohJsFormValidatorSubmitListener = listener;
+        form.addEventListener('submit', listener);
     };
 
     /**
