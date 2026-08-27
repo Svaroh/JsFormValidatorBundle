@@ -1278,6 +1278,129 @@ describe('SvarohJsFormValidator model registration', () => {
     });
 });
 
+// An application that swaps rendered forms in and out of one page - a single
+// page CRUD - registers a model per render, and nothing used to take one back
+describe('SvarohJsFormValidator model teardown', () => {
+    afterEach(() => {
+        document.body.innerHTML = '';
+        window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.formInstances = {};
+        window.SvarohJsFormValidator.constraintsCounter = 0;
+        jest.restoreAllMocks();
+    });
+
+    function buildModel(id, name, children) {
+        return {
+            id: id,
+            name: name,
+            type: '',
+            invalidMessage: '',
+            bubbling: false,
+            disabled: false,
+            transformers: [],
+            data: {},
+            children: children === undefined ? [] : children,
+        };
+    }
+
+    function profileModel() {
+        return buildModel('profile', 'profile', {
+            email: buildModel('profile_email', 'profile[email]'),
+        });
+    }
+
+    function renderProfile() {
+        document.body.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+    }
+
+    test('removeModel forgets the registration and the nodes it was attached to', () => {
+        renderProfile();
+        const form = document.getElementById('profile');
+        const input = document.getElementById('profile_email');
+
+        expect(window.SvarohJsFormValidator.removeModel('profile')).toBe(1);
+
+        expect(window.SvarohJsFormValidator.forms.profile).toBeUndefined();
+        expect(window.SvarohJsFormValidator.getFormInstances('profile')).toEqual([]);
+        expect(form.jsFormValidator).toBeUndefined();
+        expect(input.jsFormValidator).toBeUndefined();
+    });
+
+    test('removeModel of an unknown id removes nothing', () => {
+        renderProfile();
+
+        expect(window.SvarohJsFormValidator.removeModel('ghost')).toBe(0);
+        expect(window.SvarohJsFormValidator.forms.profile).toBeDefined();
+    });
+
+    test('a removed form no longer runs validation on submit', () => {
+        renderProfile();
+        const form = document.getElementById('profile');
+        window.SvarohJsFormValidator.removeModel('profile');
+
+        const customize = jest.spyOn(window.SvarohJsFormValidator, 'customize');
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+        expect(customize).not.toHaveBeenCalled();
+    });
+
+    test('removeForm keeps the other render of the same form', () => {
+        document.body.innerHTML =
+            '<form id="profile"><input id="profile_email" name="profile[email]"></form>'
+            + '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+
+        const [first, second] = Array.from(document.querySelectorAll('form'));
+        expect(window.SvarohJsFormValidator.getFormInstances('profile')).toHaveLength(2);
+
+        expect(window.SvarohJsFormValidator.removeForm(first)).toBe(true);
+
+        const instances = window.SvarohJsFormValidator.getFormInstances('profile');
+        expect(instances).toHaveLength(1);
+        expect(instances[0].domNode).toBe(second);
+        expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(second);
+        expect(first.jsFormValidator).toBeUndefined();
+        expect(second.jsFormValidator).toBeDefined();
+    });
+
+    test('removeForm answers false for a node it holds no registration for', () => {
+        renderProfile();
+
+        expect(window.SvarohJsFormValidator.removeForm(document.createElement('form'))).toBe(false);
+        expect(window.SvarohJsFormValidator.removeForm(null)).toBe(false);
+        expect(window.SvarohJsFormValidator.getFormInstances('profile')).toHaveLength(1);
+    });
+
+    test('removeDetachedForms drops the registrations of nodes that left the document', () => {
+        renderProfile();
+        const gone = document.getElementById('profile');
+        gone.remove();
+        renderProfile();
+        const kept = document.getElementById('profile');
+
+        expect(window.SvarohJsFormValidator.getFormInstances('profile')).toHaveLength(2);
+        expect(window.SvarohJsFormValidator.removeDetachedForms()).toBe(1);
+
+        const instances = window.SvarohJsFormValidator.getFormInstances('profile');
+        expect(instances).toHaveLength(1);
+        expect(instances[0].domNode).toBe(kept);
+        expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(kept);
+    });
+
+    test('initializing the same markup again does not validate the form twice', () => {
+        renderProfile();
+        const form = document.getElementById('profile');
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+
+        const customize = jest.spyOn(window.SvarohJsFormValidator, 'customize');
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+
+        expect(customize).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('SvarohJsFormValidator property paths', () => {
     beforeEach(() => {
         document.body.innerHTML = '';

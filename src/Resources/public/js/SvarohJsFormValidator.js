@@ -677,6 +677,143 @@ var SvarohJsFormValidator = new function () {
         return this.formInstances[id] ? this.formInstances[id] : [];
     };
 
+    /**
+     * Undoes what "attachElement" and "attachDefaultEvent" did to the DOM
+     * nodes of an element and of its children, so a node an application
+     * dropped from the document keeps no reference back to the model and no
+     * listener of this library
+     *
+     * @param {SvarohJsFormElement} element
+     */
+    this.detachElement = function (element) {
+        if (!element) {
+            return;
+        }
+
+        for (var name in element.children) {
+            this.detachElement(element.children[name]);
+        }
+
+        var domNode = element.domNode;
+        if (!domNode) {
+            return;
+        }
+
+        if (domNode.jsFormValidator === element) {
+            delete domNode.jsFormValidator;
+        }
+
+        if (domNode.__svarohJsFormValidatorSubmitListener) {
+            domNode.removeEventListener('submit', domNode.__svarohJsFormValidatorSubmitListener);
+            delete domNode.__svarohJsFormValidatorSubmitListener;
+        }
+    };
+
+    /**
+     * Keeps the given registrations of a model id and drops the id entirely
+     * when none are left, so "forms" never answers with an element the
+     * registry no longer holds
+     *
+     * @param {String} id
+     * @param {Array} instances
+     */
+    this.keepFormInstances = function (id, instances) {
+        if (!instances.length) {
+            delete this.formInstances[id];
+            delete this.forms[id];
+
+            return;
+        }
+
+        this.formInstances[id] = instances;
+        for (var i = 0; i < instances.length; i++) {
+            if (instances[i] === this.forms[id]) {
+                return;
+            }
+        }
+
+        this.forms[id] = instances[instances.length - 1];
+    };
+
+    /**
+     * Removes every registration of a model id
+     *
+     * @param {String} id
+     *
+     * @return {Number} the number of removed registrations
+     */
+    this.removeModel = function (id) {
+        var instances = this.getFormInstances(id);
+        for (var i = 0; i < instances.length; i++) {
+            this.detachElement(instances[i]);
+        }
+
+        this.keepFormInstances(id, []);
+
+        return instances.length;
+    };
+
+    /**
+     * Removes the registration attached to one form node, which is what an
+     * application replacing a single rendered form needs
+     *
+     * @param {HTMLElement} domNode
+     *
+     * @return {Boolean} whether a registration was removed
+     */
+    this.removeForm = function (domNode) {
+        if (!domNode) {
+            return false;
+        }
+
+        var removed = false;
+        for (var id in this.formInstances) {
+            var kept = [];
+            var instances = this.formInstances[id];
+            for (var i = 0; i < instances.length; i++) {
+                if (instances[i].domNode === domNode) {
+                    this.detachElement(instances[i]);
+                    removed = true;
+                } else {
+                    kept.push(instances[i]);
+                }
+            }
+
+            this.keepFormInstances(id, kept);
+        }
+
+        return removed;
+    };
+
+    /**
+     * Removes every registration whose form is no longer in the document. An
+     * application that swaps rendered forms in and out without naming them
+     * calls this after a swap, otherwise the registry grows with elements of
+     * nodes that are gone
+     *
+     * @return {Number} the number of removed registrations
+     */
+    this.removeDetachedForms = function () {
+        var removed = 0;
+        for (var id in this.formInstances) {
+            var kept = [];
+            var instances = this.formInstances[id];
+            for (var i = 0; i < instances.length; i++) {
+                var domNode = instances[i].domNode;
+                if (domNode && document.contains(domNode)) {
+                    kept.push(instances[i]);
+                } else {
+                    this.detachElement(instances[i]);
+                    removed++;
+                }
+            }
+
+            this.keepFormInstances(id, kept);
+        }
+
+        return removed;
+    };
+
     this.onDocumentReady = function (callback) {
         var addListener = document.addEventListener || document.attachEvent;
         var removeListener = document.removeEventListener || document.detachEvent;
@@ -1391,9 +1528,20 @@ var SvarohJsFormValidator = new function () {
      * @param {HTMLFormElement} form
      */
     this.attachDefaultEvent = function (element, form) {
-        form.addEventListener('submit', function (event) {
+        // The same markup can be initialized more than once - an application
+        // that renders a form fragment again - and a second listener would run
+        // the whole validation twice for one submit, so the listener is kept
+        // on the node and replaced instead of stacked
+        if (form.__svarohJsFormValidatorSubmitListener) {
+            form.removeEventListener('submit', form.__svarohJsFormValidatorSubmitListener);
+        }
+
+        var listener = function (event) {
             SvarohJsFormValidator.customize(form, 'submitForm', event);
-        });
+        };
+
+        form.__svarohJsFormValidatorSubmitListener = listener;
+        form.addEventListener('submit', listener);
     };
 
     /**
