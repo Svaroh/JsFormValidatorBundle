@@ -1399,6 +1399,180 @@ describe('SvarohJsFormValidator model teardown', () => {
 
         expect(customize).toHaveBeenCalledTimes(1);
     });
+
+    test('removeForm repoints "forms" when the last render is removed', () => {
+        document.body.innerHTML =
+            '<form id="profile"><input id="profile_email" name="profile[email]"></form>'
+            + '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+
+        const [first, second] = Array.from(document.querySelectorAll('form'));
+        expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(second);
+
+        expect(window.SvarohJsFormValidator.removeForm(second)).toBe(true);
+
+        expect(window.SvarohJsFormValidator.getFormInstances('profile')).toHaveLength(1);
+        expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(first);
+    });
+
+    test('detaching nothing leaves the registry alone', () => {
+        renderProfile();
+
+        expect(() => window.SvarohJsFormValidator.detachElement(null)).not.toThrow();
+        expect(window.SvarohJsFormValidator.getFormInstances('profile')).toHaveLength(1);
+    });
+});
+
+// Symfony renders a form as "<form name="...">", which carries no id, and puts
+// the id of the model on the container that "form_widget" writes inside it. The
+// element of a root model is then attached to two nodes: the container
+// "createElement" matched and the form "initModel" resolved afterwards
+describe('SvarohJsFormValidator model teardown of the default rendering', () => {
+    afterEach(() => {
+        document.body.innerHTML = '';
+        window.SvarohJsFormValidator.forms = {};
+        window.SvarohJsFormValidator.formInstances = {};
+        window.SvarohJsFormValidator.constraintsCounter = 0;
+        jest.restoreAllMocks();
+    });
+
+    function buildModel(id, name, children) {
+        return {
+            id: id,
+            name: name,
+            type: '',
+            invalidMessage: '',
+            bubbling: false,
+            disabled: false,
+            transformers: [],
+            data: {},
+            children: children === undefined ? [] : children,
+        };
+    }
+
+    function profileModel() {
+        return buildModel('profile', 'profile', {
+            email: buildModel('profile_email', 'profile[email]'),
+        });
+    }
+
+    function renderProfile() {
+        document.body.innerHTML =
+            '<form name="profile" method="post">'
+            + '<div id="profile"><input id="profile_email" name="profile[email]"></div>'
+            + '</form>';
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+    }
+
+    test('the element is attached to the form and to the container of the id', () => {
+        renderProfile();
+
+        const element = window.SvarohJsFormValidator.getFormInstances('profile')[0];
+        expect(element.domNode).toBe(document.querySelector('form'));
+        expect(element.widgetDomNode).toBe(document.getElementById('profile'));
+    });
+
+    test('removeModel detaches the form and the container alike', () => {
+        renderProfile();
+        const form = document.querySelector('form');
+        const container = document.getElementById('profile');
+        const input = document.getElementById('profile_email');
+
+        expect(window.SvarohJsFormValidator.removeModel('profile')).toBe(1);
+
+        expect(form.jsFormValidator).toBeUndefined();
+        expect(container.jsFormValidator).toBeUndefined();
+        expect(input.jsFormValidator).toBeUndefined();
+    });
+
+    // The container used to keep the removed element, which the next
+    // initialization of the same markup read back and choked on
+    test('the same markup is initialized again after removeModel', () => {
+        renderProfile();
+        window.SvarohJsFormValidator.removeModel('profile');
+
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+
+        const instances = window.SvarohJsFormValidator.getFormInstances('profile');
+        expect(instances).toHaveLength(1);
+        expect(instances[0].domNode).toBe(document.querySelector('form'));
+        expect(instances[0].children.email.domNode).toBe(document.getElementById('profile_email'));
+    });
+
+    test('removeForm answers to the node the model id is on', () => {
+        renderProfile();
+
+        expect(window.SvarohJsFormValidator.removeForm(document.getElementById('profile'))).toBe(true);
+        expect(window.SvarohJsFormValidator.getFormInstances('profile')).toEqual([]);
+    });
+
+    // A fragment of fields rendered outside of any form tag has no form node at
+    // all, and its widgets are what tells whether it is still rendered
+    test('removeDetachedForms keeps a model whose fields are not inside a form', () => {
+        document.body.innerHTML = '<div id="profile"><input id="profile_email" name="profile[email]"></div>';
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+        const input = document.getElementById('profile_email');
+        expect(window.SvarohJsFormValidator.getFormInstances('profile')[0].domNode).toBeNull();
+
+        expect(window.SvarohJsFormValidator.removeDetachedForms()).toBe(0);
+
+        expect(window.SvarohJsFormValidator.getFormInstances('profile')).toHaveLength(1);
+        expect(input.jsFormValidator).toBeDefined();
+    });
+
+    // A form rendered row by row has no container of its own either, and then
+    // only its children answer whether it is still rendered
+    test('removeDetachedForms keeps a model rendered as separate rows', () => {
+        document.body.innerHTML = '<div><input id="profile_email" name="profile[email]"></div>';
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+        const input = document.getElementById('profile_email');
+        const element = window.SvarohJsFormValidator.getFormInstances('profile')[0];
+        expect(element.domNode).toBeNull();
+        expect(element.widgetDomNode).toBeNull();
+
+        expect(window.SvarohJsFormValidator.removeDetachedForms()).toBe(0);
+
+        expect(window.SvarohJsFormValidator.getFormInstances('profile')).toHaveLength(1);
+        expect(input.jsFormValidator).toBeDefined();
+    });
+
+    test('removeDetachedForms drops that model once its markup left the document', () => {
+        document.body.innerHTML =
+            '<div id="panel"><div id="profile"><input id="profile_email" name="profile[email]"></div></div>';
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+        document.getElementById('panel').innerHTML = '';
+
+        expect(window.SvarohJsFormValidator.removeDetachedForms()).toBe(1);
+        expect(window.SvarohJsFormValidator.getFormInstances('profile')).toEqual([]);
+    });
+
+    // The submit listener reads the element off the form when the form is
+    // submitted, so it belongs to the node and not to one of its models
+    test('removing one of two models rooted in the same form keeps the other validated', () => {
+        document.body.innerHTML =
+            '<form name="pair" method="post">'
+            + '<div id="profile"><input id="profile_email" name="profile[email]"></div>'
+            + '<div id="address"><input id="address_city" name="address[city]"></div>'
+            + '</form>';
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+        window.SvarohJsFormValidator.addModel(buildModel('address', 'address', {
+            city: buildModel('address_city', 'address[city]'),
+        }), false);
+
+        // Each model keeps the container of its own render, although both
+        // elements were attached to the same form node
+        const address = window.SvarohJsFormValidator.getFormInstances('address')[0];
+        expect(address.widgetDomNode).toBe(document.getElementById('address'));
+
+        expect(window.SvarohJsFormValidator.removeModel('profile')).toBe(1);
+
+        const customize = jest.spyOn(window.SvarohJsFormValidator, 'customize');
+        document.querySelector('form').dispatchEvent(new Event('submit', { cancelable: true }));
+
+        expect(window.SvarohJsFormValidator.getFormInstances('address')).toHaveLength(1);
+        expect(customize).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('SvarohJsFormValidator property paths', () => {
