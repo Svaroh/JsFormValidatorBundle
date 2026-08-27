@@ -651,10 +651,19 @@ var SvarohJsFormValidator = new function () {
         }
 
         var instances = this.formInstances[model.id];
-        for (var i = 0; i < instances.length; i++) {
+        // A single page application that swaps a rendered form for a new one
+        // leaves the element of the node it removed behind, and every reopened
+        // modal or revisited wizard step would add one more
+        for (var i = instances.length - 1; i >= 0; i--) {
+            if (this.isDetachedNode(instances[i].domNode)) {
+                instances.splice(i, 1);
+            }
+        }
+
+        for (var j = 0; j < instances.length; j++) {
             // A repeated initialization of the same markup replaces its element
-            if (instances[i].domNode && instances[i].domNode === element.domNode) {
-                instances[i] = element;
+            if (instances[j].domNode && instances[j].domNode === element.domNode) {
+                instances[j] = element;
 
                 return element;
             }
@@ -663,6 +672,22 @@ var SvarohJsFormValidator = new function () {
         instances.push(element);
 
         return element;
+    };
+
+    /**
+     * Whether the node was taken out of the document again, which only a
+     * browser that can answer it at all reports
+     *
+     * @param {HTMLElement|null} domNode
+     *
+     * @return {boolean}
+     */
+    this.isDetachedNode = function (domNode) {
+        if (!domNode || typeof document.contains !== 'function') {
+            return false;
+        }
+
+        return !document.contains(domNode);
     };
 
     /**
@@ -678,24 +703,38 @@ var SvarohJsFormValidator = new function () {
     };
 
     this.onDocumentReady = function (callback) {
-        // A model added after the document was parsed - a form fragment that a
-        // single page application fetched and injected - would wait here for a
-        // "DOMContentLoaded" that has already been dispatched, so the callback
-        // runs right away once the document is past parsing
-        if (document.readyState && 'loading' !== document.readyState) {
+        // A model added to a document that is already loaded - a form fragment
+        // that a single page application fetched and injected - would wait
+        // here for an event that has already been dispatched. Only "complete"
+        // stands for that: while the state is "interactive" the document is
+        // parsed but its deferred scripts, and the js_validator_config() one
+        // of them may carry, still run before the event
+        if ('complete' === document.readyState) {
             callback();
 
             return;
         }
 
+        var isFallback = !document.addEventListener;
         var addListener = document.addEventListener || document.attachEvent;
         var removeListener = document.removeEventListener || document.detachEvent;
-        var eventName = document.addEventListener ? "DOMContentLoaded" : "onreadystatechange";
+        var eventName = isFallback ? "onreadystatechange" : "DOMContentLoaded";
 
-        addListener.call(document, eventName, function (callee) {
-            removeListener.call(this, eventName, callee, false);
+        // The handler has to name itself to be removed again: the first
+        // argument a listener receives is the event, and "attachEvent" passes
+        // no argument at all, so neither identifies the function to detach
+        var handler = function () {
+            // The fallback listens to every state transition, only the last
+            // one stands for a document that finished loading
+            if (isFallback && 'complete' !== document.readyState) {
+                return;
+            }
+
+            removeListener.call(document, eventName, handler, false);
             callback();
-        }, false)
+        };
+
+        addListener.call(document, eventName, handler, false)
     };
 
     /**

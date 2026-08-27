@@ -1223,6 +1223,7 @@ describe('SvarohJsFormValidator runtime helpers', () => {
 describe('SvarohJsFormValidator model registration', () => {
     afterEach(() => {
         document.body.innerHTML = '';
+        window.SvarohJsFormValidator.config = {};
         window.SvarohJsFormValidator.forms = {};
         window.SvarohJsFormValidator.formInstances = {};
         window.SvarohJsFormValidator.constraintsCounter = 0;
@@ -1240,6 +1241,21 @@ describe('SvarohJsFormValidator model registration', () => {
             data: {},
             children: children === undefined ? [] : children,
         };
+    }
+
+    // jsdom reports "complete" for the whole run, a test of the deferred
+    // branch has to say the document is still loading itself
+    function withReadyState(state, run) {
+        Object.defineProperty(document, 'readyState', {
+            configurable: true,
+            get: () => state,
+        });
+
+        try {
+            run();
+        } finally {
+            delete document.readyState;
+        }
     }
 
     test('skips a model whose form is not rendered on the current page', () => {
@@ -1264,17 +1280,21 @@ describe('SvarohJsFormValidator model registration', () => {
     });
 
     test('skips a model without a DOM node on the deferred branch too', () => {
-        document.body.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
-        const rendered = buildModel('profile', 'profile', {
-            email: buildModel('profile_email', 'profile[email]'),
+        withReadyState('loading', () => {
+            document.body.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+            const rendered = buildModel('profile', 'profile', {
+                email: buildModel('profile_email', 'profile[email]'),
+            });
+
+            window.SvarohJsFormValidator.addModel(buildModel('ghost', 'ghost'));
+            window.SvarohJsFormValidator.addModel(rendered);
+
+            expect(window.SvarohJsFormValidator.forms.profile).toBeUndefined();
+
+            expect(() => document.dispatchEvent(new Event('DOMContentLoaded'))).not.toThrow();
+            expect(Object.keys(window.SvarohJsFormValidator.forms)).toEqual(['profile']);
+            expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(document.getElementById('profile'));
         });
-
-        window.SvarohJsFormValidator.addModel(buildModel('ghost', 'ghost'));
-        window.SvarohJsFormValidator.addModel(rendered);
-
-        expect(() => document.dispatchEvent(new Event('DOMContentLoaded'))).not.toThrow();
-        expect(Object.keys(window.SvarohJsFormValidator.forms)).toEqual(['profile']);
-        expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(document.getElementById('profile'));
     });
 
     // A single page application injects a form long after "DOMContentLoaded",
@@ -1291,12 +1311,7 @@ describe('SvarohJsFormValidator model registration', () => {
     });
 
     test('still waits for the document while it is being parsed', () => {
-        Object.defineProperty(document, 'readyState', {
-            configurable: true,
-            get: () => 'loading',
-        });
-
-        try {
+        withReadyState('loading', () => {
             document.body.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
             window.SvarohJsFormValidator.addModel(buildModel('profile', 'profile', {
                 email: buildModel('profile_email', 'profile[email]'),
@@ -1307,9 +1322,96 @@ describe('SvarohJsFormValidator model registration', () => {
             document.dispatchEvent(new Event('DOMContentLoaded'));
 
             expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(document.getElementById('profile'));
-        } finally {
-            delete document.readyState;
-        }
+        });
+    });
+
+    // A deferred script runs after the parse but before "DOMContentLoaded",
+    // and js_validator_config() may be one of the scripts still to come
+    test('still waits for the document while its deferred scripts run', () => {
+        withReadyState('interactive', () => {
+            document.body.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+            window.SvarohJsFormValidator.addModel(buildModel('profile', 'profile', {
+                email: buildModel('profile_email', 'profile[email]'),
+            }));
+
+            expect(window.SvarohJsFormValidator.forms.profile).toBeUndefined();
+
+            document.dispatchEvent(new Event('DOMContentLoaded'));
+
+            expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(document.getElementById('profile'));
+        });
+    });
+
+    // The configuration a template prints below the model decides whether the
+    // native UI is turned off, so the call waiting for it must not run early
+    test('turns the native UI off with a configuration a deferred script sets', () => {
+        withReadyState('interactive', () => {
+            document.body.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]" required></form>';
+            window.SvarohJsFormValidator.config = {};
+
+            window.SvarohJsFormValidator.addModel(buildModel('profile', 'profile', {
+                email: buildModel('profile_email', 'profile[email]'),
+            }), false);
+
+            // js_validator_config() of a template that prints it further down
+            window.SvarohJsFormValidator.config = { html5Validation: true };
+            document.dispatchEvent(new Event('DOMContentLoaded'));
+
+            expect(document.getElementById('profile').getAttribute('novalidate')).toBe('novalidate');
+        });
+    });
+
+    test('leaves no listener behind once the document is ready', () => {
+        withReadyState('loading', () => {
+            const callback = jest.fn();
+            window.SvarohJsFormValidator.onDocumentReady(callback);
+
+            document.dispatchEvent(new Event('DOMContentLoaded'));
+            document.dispatchEvent(new Event('DOMContentLoaded'));
+
+            expect(callback).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    // A modal that fetches its form is opened again, a wizard step is
+    // revisited: the node of the previous render is gone from the document
+    test('forgets the instance of a render that was taken out of the document', () => {
+        const container = document.createElement('div');
+        document.body.appendChild(container);
+
+        const inject = () => {
+            container.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+            window.SvarohJsFormValidator.addModel(buildModel('profile', 'profile', {
+                email: buildModel('profile_email', 'profile[email]'),
+            }));
+        };
+
+        inject();
+        inject();
+        inject();
+
+        const instances = window.SvarohJsFormValidator.getFormInstances('profile');
+        expect(instances).toHaveLength(1);
+        expect(instances[0].domNode).toBe(document.getElementById('profile'));
+        expect(window.SvarohJsFormValidator.forms.profile).toBe(instances[0]);
+    });
+
+    test('keeps every render that is still in the document', () => {
+        document.body.innerHTML = '<form id="profile"><input id="profile_email" name="profile[email]"></form>'
+            + '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+
+        window.SvarohJsFormValidator.addModel(buildModel('profile', 'profile', {
+            email: buildModel('profile_email', 'profile[email]'),
+        }));
+        window.SvarohJsFormValidator.addModel(buildModel('profile', 'profile', {
+            email: buildModel('profile_email', 'profile[email]'),
+        }));
+
+        const instances = window.SvarohJsFormValidator.getFormInstances('profile');
+        const rendered = document.querySelectorAll('[id="profile"]');
+        expect(instances).toHaveLength(2);
+        expect(instances[0].domNode).toBe(rendered[0]);
+        expect(instances[1].domNode).toBe(rendered[1]);
     });
 });
 
