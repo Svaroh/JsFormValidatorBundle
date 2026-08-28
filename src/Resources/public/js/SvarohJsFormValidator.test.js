@@ -1511,11 +1511,16 @@ describe('SvarohJsFormValidator model teardown', () => {
     });
 
     test('removeDetachedForms drops the registrations of nodes that left the document', () => {
-        renderProfile();
-        const gone = document.getElementById('profile');
+        document.body.innerHTML =
+            '<form id="profile"><input id="profile_email" name="profile[email]"></form>'
+            + '<form id="profile"><input id="profile_email" name="profile[email]"></form>';
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+        window.SvarohJsFormValidator.addModel(profileModel(), false);
+
+        const [gone, kept] = Array.from(document.querySelectorAll('form'));
+        // The node leaves after the last registration, so the sweep that
+        // registering does on its own has not seen it
         gone.remove();
-        renderProfile();
-        const kept = document.getElementById('profile');
 
         expect(window.SvarohJsFormValidator.getFormInstances('profile')).toHaveLength(2);
         expect(window.SvarohJsFormValidator.removeDetachedForms()).toBe(1);
@@ -1524,6 +1529,21 @@ describe('SvarohJsFormValidator model teardown', () => {
         expect(instances).toHaveLength(1);
         expect(instances[0].domNode).toBe(kept);
         expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(kept);
+    });
+
+    // Registering sweeps on its own, so a page that swaps a form for a new one
+    // does not grow a registration per swap even when it never asks
+    test('registering a form drops the registrations of nodes that left the document', () => {
+        renderProfile();
+        document.getElementById('profile').remove();
+        renderProfile();
+        const kept = document.getElementById('profile');
+
+        const instances = window.SvarohJsFormValidator.getFormInstances('profile');
+        expect(instances).toHaveLength(1);
+        expect(instances[0].domNode).toBe(kept);
+        expect(window.SvarohJsFormValidator.forms.profile.domNode).toBe(kept);
+        expect(window.SvarohJsFormValidator.removeDetachedForms()).toBe(0);
     });
 
     test('initializing the same markup again does not validate the form twice', () => {
