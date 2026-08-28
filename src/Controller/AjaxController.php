@@ -128,9 +128,114 @@ class AjaxController
             ));
         }
 
-        $entity = $repository->{$constraint->repositoryMethod}($values);
+        $matches = $this->toList($repository->{$constraint->repositoryMethod}($values));
 
-        return new JsonResponse(empty($entity));
+        if (!$matches) {
+            return new JsonResponse(true);
+        }
+
+        return new JsonResponse($this->holdsOnlyTheEditedRecord($matches, $entityName, $data));
+    }
+
+    /**
+     * The repository method a UniqueEntity constraint declares answers with a
+     * list, but a custom one may answer with a single entity or with nothing
+     *
+     * @param mixed $result
+     *
+     * @return array
+     */
+    private function toList($result)
+    {
+        if (null === $result) {
+            return array();
+        }
+
+        if (is_array($result)) {
+            return $result;
+        }
+
+        if ($result instanceof \Traversable) {
+            return iterator_to_array($result);
+        }
+
+        return array($result);
+    }
+
+    /**
+     * Whether every record holding the value is the record the form is editing
+     *
+     * A form that edits a record submits the value that record already holds,
+     * so the record matches itself. Symfony's own validator knows the object it
+     * is validating and skips it; here the identifier of that object travels
+     * with the request, which means a caller can ask for an answer that ignores
+     * one record of its choosing. The answer is a hint either way - the
+     * validator refuses the submit itself, whatever this route said - and the
+     * route stays the existence oracle documented in 3_9.
+     *
+     * @param array  $matches
+     * @param string $entityName
+     * @param array  $data
+     *
+     * @return bool
+     */
+    private function holdsOnlyTheEditedRecord(array $matches, $entityName, array $data)
+    {
+        if (!isset($data['entityId']) || !is_scalar($data['entityId']) || '' === $data['entityId']) {
+            return false;
+        }
+
+        foreach ($matches as $match) {
+            $identifier = $this->identifierOf($match, $entityName);
+
+            if (null === $identifier || (string)$identifier !== (string)$data['entityId']) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * The single identifier value of a record, or null when it has none the
+     * identifier in the request could be compared with: a composite key, or an
+     * object no manager and no getId() can answer for
+     *
+     * @param mixed  $entity
+     * @param string $entityName
+     *
+     * @return mixed|null
+     */
+    private function identifierOf($entity, $entityName)
+    {
+        if (!is_object($entity)) {
+            return null;
+        }
+
+        $values = array();
+
+        try {
+            $manager = $this->doctrine->getManagerForClass($entityName);
+            if ($manager) {
+                $values = $manager->getClassMetadata($entityName)->getIdentifierValues($entity);
+            }
+        } catch (\Throwable $e) {
+            $values = array();
+        }
+
+        if (1 === count($values)) {
+            $value = reset($values);
+
+            return is_scalar($value) ? $value : null;
+        }
+
+        // A composite key cannot be matched against the single value the
+        // browser sends, so the record is never taken for the edited one
+        if ($values) {
+            return null;
+        }
+
+        return method_exists($entity, 'getId') && is_scalar($entity->getId()) ? $entity->getId() : null;
     }
 
     /**

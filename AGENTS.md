@@ -75,3 +75,9 @@ Last verified in the Nix shell on PHP 8.5.6 / Node 24.16.0:
   the class validation metadata, so the endpoint refuses it. Declare
   `UniqueEntity` on the entity class, or point the bundle at a custom
   controller.
+- The lookup skips the record the form is editing, named by the `entityId` the
+  browser sends, so an edit is not reported as a duplicate of itself. That
+  identifier is the one thing the request does decide, which lets a caller ask
+  for an answer that ignores one record. It only changes an answer, never data,
+  and the server side validator is unaffected. Documented in
+  `src/Resources/doc/3_9.md`.

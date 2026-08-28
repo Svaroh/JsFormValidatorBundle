@@ -430,6 +430,82 @@ class AjaxControllerTest extends TestCase
     }
 
     /**
+     * A form that edits a record submits the value that record already holds,
+     * so the record matches itself. Symfony's own validator skips the object it
+     * validates; this endpoint is told which record that is by "entityId"
+     */
+    public function testTheEditedRecordIsNotADuplicateOfItself()
+    {
+        $controller = new AjaxController(
+            $this->createRegistry(new IdentifiedRepository()),
+            $this->createMetadataFactory()
+        );
+
+        $response = $controller->checkUniqueEntityAction(new Request(array(), array(
+            'entityName'       => InMemoryEntity::class,
+            'repositoryMethod' => 'findBy',
+            'entityId'         => '15',
+            'data'             => array('email' => 'existing_email'),
+        )));
+
+        $this->assertTrue(json_decode($response->getContent()), 'The record being edited is not its own duplicate');
+    }
+
+    public function testAValueHeldByAnotherRecordIsADuplicate()
+    {
+        $controller = new AjaxController(
+            $this->createRegistry(new IdentifiedRepository()),
+            $this->createMetadataFactory()
+        );
+
+        $response = $controller->checkUniqueEntityAction(new Request(array(), array(
+            'entityName'       => InMemoryEntity::class,
+            'repositoryMethod' => 'findBy',
+            'entityId'         => '16',
+            'data'             => array('email' => 'existing_email'),
+        )));
+
+        $this->assertFalse(json_decode($response->getContent()), 'Another record holding the value is a duplicate');
+    }
+
+    public function testAnExistingValueIsADuplicateWhenNoRecordIsBeingEdited()
+    {
+        $controller = new AjaxController(
+            $this->createRegistry(new IdentifiedRepository()),
+            $this->createMetadataFactory()
+        );
+
+        $response = $controller->checkUniqueEntityAction(new Request(array(), array(
+            'entityName'       => InMemoryEntity::class,
+            'repositoryMethod' => 'findBy',
+            'data'             => array('email' => 'existing_email'),
+        )));
+
+        $this->assertFalse(json_decode($response->getContent()), 'A create form has no record to skip');
+    }
+
+    /**
+     * Nothing can be said about a match whose identifier cannot be read, so it
+     * is never taken for the record being edited
+     */
+    public function testAMatchWithoutAnIdentifierIsADuplicate()
+    {
+        $controller = new AjaxController(
+            $this->createRegistry(new InMemoryRepository()),
+            $this->createMetadataFactory()
+        );
+
+        $response = $controller->checkUniqueEntityAction(new Request(array(), array(
+            'entityName'       => InMemoryEntity::class,
+            'repositoryMethod' => 'findBy',
+            'entityId'         => '15',
+            'data'             => array('email' => 'existing_email'),
+        )));
+
+        $this->assertFalse(json_decode($response->getContent()), 'A match with no identifier is a duplicate');
+    }
+
+    /**
      * The constraints the fixture application declared
      *
      * @return InMemoryMetadataFactory
@@ -538,6 +614,42 @@ class InMemoryRepository implements ObjectRepository
     public function getClassName(): string
     {
         return InMemoryEntity::class;
+    }
+}
+
+class IdentifiedRepository extends InMemoryRepository
+{
+    public function findBy(array $criteria, ?array $orderBy = null, ?int $limit = null, ?int $offset = null): array
+    {
+        if (isset($criteria['email']) && 'existing_email' === $criteria['email']) {
+            return array(new IdentifiedEntity(15));
+        }
+
+        return array();
+    }
+}
+
+class IdentifiedEntity
+{
+    /**
+     * @var int
+     */
+    private $id;
+
+    /**
+     * @param int $id
+     */
+    public function __construct($id)
+    {
+        $this->id = $id;
+    }
+
+    /**
+     * @return int
+     */
+    public function getId()
+    {
+        return $this->id;
     }
 }
 
